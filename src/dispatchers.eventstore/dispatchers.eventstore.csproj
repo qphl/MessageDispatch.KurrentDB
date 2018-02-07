@@ -52,6 +52,7 @@
     <Compile Include="EventStoreAggregateEventDispatcher.cs" />
     <Compile Include="EventStoreJObjectDispatcher.cs" />
     <Compile Include="EventStoreSubscriber.cs" />
+    <Compile Include="ForgetfulEventStoreDispatcher.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SimpleEventStoreDispatcher.cs" />
   </ItemGroup>
