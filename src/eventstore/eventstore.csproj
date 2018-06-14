@@ -15,7 +15,7 @@
     <PackageId>CR.MessageDispatch.EventStore</PackageId>
     <Product>CR.MessageDispatch</Product>
     <Description>A package to use EventStore to get Events to Dispatch using CR.MessageDispatch.</Description>
-    <PackageReleaseNotes>https://GitHub.com/Cognisant/MessageDispatch.EventStore/releases/tag/$(Version)</PackageReleaseNotes>
+    <PackageReleaseNotes>https://GitHub.com/Cognisant/MessageDispatch.EventStore/releases/tag/$(Tag)</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
