@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -15,6 +15,7 @@
     <PackageId>CR.MessageDispatch.EventStore</PackageId>
     <Product>CR.MessageDispatch</Product>
     <Description>A package to use EventStore to get Events to Dispatch using CR.MessageDispatch.</Description>
+    <PackageReleaseNotes>https://GitHub.com/Cognisant/MessageDispatch.EventStore/releases/tag/$(Version)</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
