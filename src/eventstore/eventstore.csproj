@@ -32,7 +32,7 @@
     <PackageReference Include="CR.CodeStyle.CSharp.Full" Version="1.0.1">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="CR.MessageDispatch.Core" Version="1.0.0-rc0001" />
+    <PackageReference Include="CR.MessageDispatch.Core" Version="1.0.0" />
     <PackageReference Include="EventStore.ClientAPI.NetCore" Version="4.1.0.23" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
   </ItemGroup>
