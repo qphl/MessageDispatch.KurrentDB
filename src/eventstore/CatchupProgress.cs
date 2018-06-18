@@ -2,7 +2,7 @@
 // Copyright (c) Cognisant. All rights reserved.
 // </copyright>
 
-namespace CR.MessageDispatch.Dispatchers.EventStore
+namespace CR.MessageDispatch.EventStore
 {
     /// <summary>
     /// Class to handle calculating catchup progress.
