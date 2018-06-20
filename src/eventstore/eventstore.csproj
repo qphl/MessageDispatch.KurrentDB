@@ -29,12 +29,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CR.CodeStyle.CSharp.Full" Version="1.0.1">
+    <PackageReference Include="CR.CodeStyle.CSharp.Full" Version="[1.0.1,2.0.0-0)">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="CR.MessageDispatch.Core" Version="1.0.0" />
-    <PackageReference Include="EventStore.ClientAPI.NetCore" Version="4.1.0.23" />
-    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+    <PackageReference Include="CR.MessageDispatch.Core" Version="[1.0.0,2.0.0-0)" />
+    <PackageReference Include="EventStore.ClientAPI.NetCore" Version="[4.1.0,2.0.0-0)" />
+    <PackageReference Include="Newtonsoft.Json" Version="[11.0.1,12.0.0-0)" />
   </ItemGroup>
 
 </Project>
