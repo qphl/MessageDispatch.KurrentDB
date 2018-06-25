@@ -10,7 +10,7 @@
     <PackageLicenseUrl>https://github.com/cognisant/MessageDispatch.EventStore/blob/master/LICENSE</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/cognisant/MessageDispatch.EventStore</PackageProjectUrl>
     <RepositoryUrl>https://github.com/cognisant/MessageDispatch.EventStore</RepositoryUrl>
-    <PackageIconUrl>https://github.com/cognisant/MessageDispatch.EventStore/blob/master/logo.png</PackageIconUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/cognisant/MessageDispatch.EventStore/master/logo.png</PackageIconUrl>
     <PackageTags>Message Dispatching, Event Sourcing</PackageTags>
     <PackageId>CR.MessageDispatch.EventStore</PackageId>
     <Product>CR.MessageDispatch</Product>
