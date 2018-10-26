@@ -62,7 +62,8 @@ namespace CR.MessageDispatch.EventStore
                     {
                         cached = Type.GetType(
                             (string)metadata["ClrType"],
-                            (assemblyName) => {
+                            (assemblyName) =>
+                            {
                                 assemblyName.Version = null;
                                 return System.Reflection.Assembly.Load(assemblyName);
                             },
