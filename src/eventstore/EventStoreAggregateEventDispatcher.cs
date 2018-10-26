@@ -60,7 +60,15 @@ namespace CR.MessageDispatch.EventStore
                 {
                     try
                     {
-                        cached = Type.GetType((string)metadata["ClrType"], true);
+                        cached = Type.GetType(
+                            (string)metadata["ClrType"],
+                            (assemblyName) => {
+                                assemblyName.Version = null;
+                                return System.Reflection.Assembly.Load(assemblyName);
+                            },
+                            null,
+                            true,
+                            true);
                     }
                     catch (Exception)
                     {
