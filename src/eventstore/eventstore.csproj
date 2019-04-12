@@ -33,8 +33,7 @@
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CR.MessageDispatch.Core" Version="[1.0.0,2.0.0-a)" />
-    <PackageReference Include="EventStore.ClientAPI.NetCore" Version="[4.1.0,5.0.0-a)" />
-    <PackageReference Include="Newtonsoft.Json" Version="[11.0.1,12.0.0-a)" />
+    <PackageReference Include="EventStore.Client" Version="[5.0.1,6.0.0-a)" />
   </ItemGroup>
 
 </Project>
