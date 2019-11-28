@@ -1,8 +1,8 @@
-﻿// <copyright file="EventStoreJObjectDispatcher.cs" company="Cognisant">
-// Copyright (c) Cognisant. All rights reserved.
+﻿// <copyright file="EventStoreJObjectDispatcher.cs" company="Corsham Science">
+// Copyright (c) Corsham Science. All rights reserved.
 // </copyright>
 
-namespace CR.MessageDispatch.EventStore
+namespace CorshamScience.MessageDispatch.EventStore
 {
     using System;
     using System.Text;

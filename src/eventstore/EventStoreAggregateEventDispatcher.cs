@@ -1,8 +1,8 @@
-﻿// <copyright file="EventStoreAggregateEventDispatcher.cs" company="Cognisant">
-// Copyright (c) Cognisant. All rights reserved.
+﻿// <copyright file="EventStoreAggregateEventDispatcher.cs" company="Corsham Science">
+// Copyright (c) Corsham Science. All rights reserved.
 // </copyright>
 
-namespace CR.MessageDispatch.EventStore
+namespace CorshamScience.MessageDispatch.EventStore
 {
     using System;
     using System.Collections.Generic;
@@ -14,7 +14,7 @@ namespace CR.MessageDispatch.EventStore
 
     /// <inheritdoc />
     /// <summary>
-    /// A deserializing event dispatcher for events produced by CR.AggregatRepository.
+    /// A deserializing event dispatcher for events produced by CorshamScience.AggregatRepository.
     /// </summary>
     // ReSharper disable once UnusedMember.Global
     public class EventStoreAggregateEventDispatcher : DeserializingMessageDispatcher<ResolvedEvent, Type>

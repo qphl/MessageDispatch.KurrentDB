@@ -1,5 +1,5 @@
-# CR.MessageDispatch.EventStore
-A package to use EventStore with CR.MessageDispatch.
+# CorshamScience.MessageDispatch.EventStore
+A package to use EventStore with CorshamScience.MessageDispatch.
 
 
 
