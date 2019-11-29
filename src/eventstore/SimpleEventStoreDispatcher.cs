@@ -8,7 +8,7 @@ namespace CorshamScience.MessageDispatch.EventStore
     using System.Collections.Generic;
     using System.ServiceModel.Dispatcher;
     using System.Text;
-    using Core;
+    using CorshamScience.MessageDispatch.Core;
     using global::EventStore.ClientAPI;
     using Newtonsoft.Json;
 

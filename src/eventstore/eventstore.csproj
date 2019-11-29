@@ -7,7 +7,7 @@
     <Authors>Corsham Science</Authors>
     <Company>Corsham Science</Company>
     <Copyright>Corsham Science 2019</Copyright>
-    <PackageLicenseUrl>https://github.com/qphl/MessageDispatch.EventStore/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageLicense>https://github.com/qphl/MessageDispatch.EventStore/blob/master/LICENSE</PackageLicense>
     <PackageProjectUrl>https://github.com/qphl/MessageDispatch.EventStore</PackageProjectUrl>
     <RepositoryUrl>https://github.com/qphl/MessageDispatch.EventStore</RepositoryUrl>
     <PackageIconUrl>https://raw.githubusercontent.com/qphl/MessageDispatch.EventStore/master/logo.png</PackageIconUrl>
@@ -34,8 +34,8 @@
     <PackageReference Include="CorshamScience.CodeStyle.CSharp.Full" Version="3.0.0">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Corsham Science.MessageDispatch.Core" Version="[1.0.0,2.0.0-a)" />
-    <PackageReference Include="EventStore.Client" Version="[5.0.1,6.0.0-a)" />
+    <PackageReference Include="CorshamScience.MessageDispatch.Core" Version="2.0.0" />
+    <PackageReference Include="EventStore.Client" Version="5.0.5" />
   </ItemGroup>
 
   <ItemGroup>

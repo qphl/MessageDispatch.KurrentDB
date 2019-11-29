@@ -9,7 +9,7 @@ namespace CorshamScience.MessageDispatch.EventStore
     using System.Linq;
     using System.Threading;
     using System.Timers;
-    using Core;
+    using CorshamScience.MessageDispatch.Core;
     using global::EventStore.ClientAPI;
     using Timer = System.Timers.Timer;
 
