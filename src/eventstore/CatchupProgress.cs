@@ -1,8 +1,8 @@
-﻿// <copyright file="CatchupProgress.cs" company="Cognisant">
-// Copyright (c) Cognisant. All rights reserved.
+﻿// <copyright file="CatchupProgress.cs" company="Corsham Science">
+// Copyright (c) Corsham Science. All rights reserved.
 // </copyright>
 
-namespace CR.MessageDispatch.EventStore
+namespace CorshamScience.MessageDispatch.EventStore
 {
     /// <summary>
     /// Class to handle calculating catchup progress.
@@ -15,7 +15,7 @@ namespace CR.MessageDispatch.EventStore
         /// <param name="eventsProcessed">The number of events which have been processed.</param>
         /// <param name="startPosition">The catchup process' starting position in the stream.</param>
         /// <param name="streamName">The name of the stream which is being caught up on.</param>
-        /// <param name="totalEvents">The total number of events in the stream which is being caught up on</param>
+        /// <param name="totalEvents">The total number of events in the stream which is being caught up on.</param>
         public CatchupProgress(int eventsProcessed, long startPosition, string streamName, long totalEvents)
         {
             EventsProcessed = eventsProcessed;

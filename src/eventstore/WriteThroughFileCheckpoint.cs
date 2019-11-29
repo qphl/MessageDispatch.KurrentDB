@@ -1,8 +1,8 @@
 ﻿/* This file is taken from Event Store codebase
    https://github.com/EventStore/EventStore/blob/master/src/EventStore.Core/TransactionLog/Checkpoint/WriteThroughFileCheckpoint.cs
-   As such we should not add a cognisant copyright file header */
+   As such we should not add a Corsham Science copyright file header */
 
-namespace CR.MessageDispatch.EventStore
+namespace CorshamScience.MessageDispatch.EventStore
 {
     using System;
     using System.IO;

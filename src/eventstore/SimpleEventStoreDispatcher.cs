@@ -1,13 +1,14 @@
-﻿// <copyright file="SimpleEventStoreDispatcher.cs" company="Cognisant">
-// Copyright (c) Cognisant. All rights reserved.
+﻿// <copyright file="SimpleEventStoreDispatcher.cs" company="Corsham Science">
+// Copyright (c) Corsham Science. All rights reserved.
 // </copyright>
 
-namespace CR.MessageDispatch.EventStore
+namespace CorshamScience.MessageDispatch.EventStore
 {
     using System;
     using System.Collections.Generic;
+    using System.ServiceModel.Dispatcher;
     using System.Text;
-    using Core;
+    using CorshamScience.MessageDispatch.Core;
     using global::EventStore.ClientAPI;
     using Newtonsoft.Json;
 
@@ -26,7 +27,7 @@ namespace CR.MessageDispatch.EventStore
         /// Initializes a new instance of the <see cref="SimpleEventStoreDispatcher" /> class.
         /// </summary>
         /// <param name="handlers">Message handler lookup of a type.</param>
-        /// <param name="eventTypeMapping">Event Type Map</param>
+        /// <param name="eventTypeMapping">Event Type Map.</param>
         /// <param name="serializerSettings">Json Serializer settings.</param>
         // ReSharper disable once UnusedMember.Global
         public SimpleEventStoreDispatcher(IMessageHandlerLookup<Type> handlers, Dictionary<string, Type> eventTypeMapping, JsonSerializerSettings serializerSettings = null)
