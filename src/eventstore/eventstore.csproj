@@ -10,7 +10,6 @@
     <PackageLicense>https://github.com/qphl/MessageDispatch.EventStore/blob/master/LICENSE</PackageLicense>
     <PackageProjectUrl>https://github.com/qphl/MessageDispatch.EventStore</PackageProjectUrl>
     <RepositoryUrl>https://github.com/qphl/MessageDispatch.EventStore</RepositoryUrl>
-    <PackageIconUrl>https://raw.githubusercontent.com/qphl/MessageDispatch.EventStore/master/logo.png</PackageIconUrl>
     <PackageTags>Message Dispatching, Event Sourcing</PackageTags>
     <PackageId>CorshamScience.MessageDispatch.EventStore</PackageId>
     <Product>CorshamScience.MessageDispatch</Product>
