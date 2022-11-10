@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>CorshamScience.MessageDispatch.EventStore</AssemblyName>
     <RootNamespace>CorshamScience.MessageDispatch.EventStore</RootNamespace>
     <Authors>Corsham Science</Authors>
@@ -20,11 +20,11 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DocumentationFile>bin\Debug\netstandard2.0\CorshamScience.MessageDispatch.EventStore.xml</DocumentationFile>
+    <DocumentationFile>bin\Debug\net6.0\CorshamScience.MessageDispatch.EventStore.xml</DocumentationFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DocumentationFile>bin\Release\netstandard2.0\CorshamScience.MessageDispatch.EventStore.xml</DocumentationFile>
+    <DocumentationFile>bin\Release\net6.0\CorshamScience.MessageDispatch.EventStore.xml</DocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsAsErrors />
   </PropertyGroup>
@@ -34,7 +34,8 @@
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CorshamScience.MessageDispatch.Core" Version="2.0.0" />
-    <PackageReference Include="EventStore.Client" Version="5.0.5" />
+    <PackageReference Include="EventStore.Client.Grpc.Streams" Version="22.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
   </ItemGroup>
 
   <ItemGroup>

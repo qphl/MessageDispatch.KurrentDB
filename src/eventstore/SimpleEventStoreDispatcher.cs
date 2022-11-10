@@ -6,10 +6,9 @@ namespace CorshamScience.MessageDispatch.EventStore
 {
     using System;
     using System.Collections.Generic;
-    using System.ServiceModel.Dispatcher;
     using System.Text;
     using CorshamScience.MessageDispatch.Core;
-    using global::EventStore.ClientAPI;
+    using global::EventStore.Client;
     using Newtonsoft.Json;
 
     /// <inheritdoc />
@@ -52,7 +51,7 @@ namespace CorshamScience.MessageDispatch.EventStore
 
             try
             {
-                var jsonString = Encoding.UTF8.GetString(rawMessage.Event.Data);
+                var jsonString = Encoding.UTF8.GetString(rawMessage.Event.Data.Span);
                 deserialized = JsonConvert.DeserializeObject(jsonString, messageType, _serializerSettings);
                 return deserialized != null;
             }
