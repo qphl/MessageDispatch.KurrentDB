@@ -8,14 +8,12 @@ namespace CorshamScience.MessageDispatch.EventStore
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
-    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using System.Timers;
     using CorshamScience.MessageDispatch.Core;
     using global::EventStore.Client;
     using Microsoft.Extensions.Logging;
-    using static global::EventStore.Client.StreamMessage;
     using Timer = System.Timers.Timer;
 
     /// <summary>
@@ -33,9 +31,7 @@ namespace CorshamScience.MessageDispatch.EventStore
 
         private EventStoreClient _eventStoreClient;
         private ulong? _startingPosition;
-        private int _maxLiveQueueSize;
         private StreamSubscription _subscription;
-        private int _catchupPageSize;
         private string _streamName;
         private bool _liveOnly;
 
@@ -63,24 +59,20 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="streamName">Stream name to push events into.</param>
         /// <param name="logger">Logger.</param>
         /// <param name="startingPosition">Starting Position.</param>
-        /// <param name="catchUpPageSize">Catchup page size.</param>
         /// <param name="upperQueueBound">Upper Queue Bound.</param>
         /// <param name="heartbeatFrequency">Frequency of heartbeat.</param>
         /// <param name="heartbeatTimeout">Timeout of heartbeat.</param>
-        /// <param name="maxLiveQueueSize">Maximum size of the live queue.</param>
         [Obsolete("Please use new static method CreateCatchUpSubscirptionFromPosition, this constructor will be removed in the future.")]
         public EventStoreSubscriber(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
-            int? startingPosition,
-            int catchUpPageSize = 1024,
+            ulong? startingPosition,
             int upperQueueBound = 2048,
             TimeSpan? heartbeatFrequency = null,
-            TimeSpan? heartbeatTimeout = null,
-            int maxLiveQueueSize = 10000)
-            => Init(eventStoreClient, dispatcher, streamName, logger, heartbeatFrequency, heartbeatTimeout, startingPosition, catchUpPageSize, upperQueueBound, maxLiveQueueSize);
+            TimeSpan? heartbeatTimeout = null)
+            => Init(eventStoreClient, dispatcher, streamName, logger, heartbeatFrequency, heartbeatTimeout, startingPosition, upperQueueBound);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EventStoreSubscriber"/> class.
@@ -90,11 +82,9 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="streamName">Stream name to push events into.</param>
         /// <param name="logger">Logger.</param>
         /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
-        /// <param name="catchupPageSize">Catchup page size.</param>
         /// <param name="upperQueueBound">Upper Queue Bound.</param>
         /// <param name="heartbeatFrequency">Frequency of heartbeat.</param>
         /// <param name="heartbeatTimeout">Timeout of heartbeat.</param>
-        /// <param name="maxLiveQueueSize">Maximum size of the live queue.</param>
         [Obsolete("Please use new static method CreateCatchupSubscriptionUsingCheckpoint, this constructor will be removed in the future.")]
         public EventStoreSubscriber(
             EventStoreClient eventStoreClient,
@@ -102,22 +92,20 @@ namespace CorshamScience.MessageDispatch.EventStore
             ILogger logger,
             string streamName,
             string checkpointFilePath,
-            int catchupPageSize = 1024,
             int upperQueueBound = 2048,
             TimeSpan? heartbeatFrequency = null,
-            TimeSpan? heartbeatTimeout = null,
-            int maxLiveQueueSize = 10000)
+            TimeSpan? heartbeatTimeout = null)
         {
-            _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, "lastProcessedPosition", false, -1);
+            _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, "lastProcessedPosition", false, ulong.MinValue);
             var initialCheckpointPosition = _checkpoint.Read();
-            int? startingPosition = null;
+            ulong? startingPosition = null;
 
-            if (initialCheckpointPosition != -1)
+            if (initialCheckpointPosition != ulong.MinValue)
             {
-                startingPosition = (int)initialCheckpointPosition;
+                startingPosition = initialCheckpointPosition;
             }
 
-            Init(eventStoreClient, dispatcher, streamName, logger, heartbeatFrequency, heartbeatTimeout, startingPosition, catchupPageSize, upperQueueBound, maxLiveQueueSize);
+            Init(eventStoreClient, dispatcher, streamName, logger, heartbeatFrequency, heartbeatTimeout, startingPosition, upperQueueBound);
         }
 
         private EventStoreSubscriber(
@@ -143,7 +131,7 @@ namespace CorshamScience.MessageDispatch.EventStore
                     _streamName,
                     StreamPosition.End,
                     maxCount: 1,
-                    resolveLinkTos: false).LastAsync().Result.Event.EventNumber.ToUInt64();
+                    resolveLinkTos: false).LastAsync().Result.OriginalEventNumber.ToUInt64();
 
                 return new CatchupProgress(_eventsProcessed, _startingPosition ?? 0, _streamName, lastStreamPosition);
             }
@@ -185,11 +173,9 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="streamName">Stream name to push events into.</param>
         /// <param name="logger">Logger.</param>
         /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
-        /// <param name="catchupPageSize">Catchup page size.</param>
         /// <param name="upperQueueBound">Upper Queue Bound.</param>
         /// <param name="heartbeatFrequency">Frequency of heartbeat.</param>
         /// <param name="heartbeatTimeout">Timeout of heartbeat.</param>
-        /// <param name="maxLiveQueueSize">Maximum size of the live queue.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
         public static EventStoreSubscriber CreateCatchupSubscriptionUsingCheckpoint(
@@ -198,12 +184,10 @@ namespace CorshamScience.MessageDispatch.EventStore
             string streamName,
             ILogger logger,
             string checkpointFilePath,
-            int catchupPageSize = 1024,
             int upperQueueBound = 2048,
             TimeSpan? heartbeatFrequency = null,
-            TimeSpan? heartbeatTimeout = null,
-            int maxLiveQueueSize = 10000)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, logger, streamName, checkpointFilePath, catchupPageSize, upperQueueBound, heartbeatFrequency, heartbeatTimeout, maxLiveQueueSize);
+            TimeSpan? heartbeatTimeout = null)
+            => new EventStoreSubscriber(eventStoreClient, dispatcher, logger, streamName, checkpointFilePath, upperQueueBound, heartbeatFrequency, heartbeatTimeout);
 
         /// <summary>
         /// Creates an ecventstore catchup subscription from a position.
@@ -213,11 +197,9 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="streamName">Stream name to push events into.</param>
         /// <param name="logger">Logger.</param>
         /// <param name="startingPosition">Starting Position.</param>
-        /// <param name="catchupPageSize">Catchup page size.</param>
         /// <param name="upperQueueBound">Upper Queue Bound.</param>
         /// <param name="heartbeatFrequency">Frequency of heartbeat.</param>
         /// <param name="heartbeatTimeout">Timeout of heartbeat.</param>
-        /// <param name="maxLiveQueueSize">Maximum size of the live queue.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
         public static EventStoreSubscriber CreateCatchupSubscriptionFromPosition(
@@ -225,13 +207,11 @@ namespace CorshamScience.MessageDispatch.EventStore
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
-            int? startingPosition,
-            int catchupPageSize = 1024,
+            ulong? startingPosition,
             int upperQueueBound = 2048,
             TimeSpan? heartbeatFrequency = null,
-            TimeSpan? heartbeatTimeout = null,
-            int maxLiveQueueSize = 10000)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, startingPosition, catchupPageSize, upperQueueBound, heartbeatFrequency, heartbeatTimeout, maxLiveQueueSize);
+            TimeSpan? heartbeatTimeout = null)
+            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, startingPosition, upperQueueBound, heartbeatFrequency, heartbeatTimeout);
 #pragma warning restore CS0618 // Type or member is obsolete
 
         /// <summary>
@@ -267,36 +247,23 @@ namespace CorshamScience.MessageDispatch.EventStore
                 {
                     _subscription = _eventStoreClient.SubscribeToStreamAsync(
                         _streamName,
-                        FromStream.Start,
+                        FromStream.End,
                         (s, e, t) => EventAppeared(e),
-                        false,
-                        SubscriptionDropped).Result;
+                        resolveLinkTos: true,
+                        subscriptionDropped: SubscriptionDropped).Result;
                 }
                 else
                 {
-                    if (_startingPosition.HasValue)
-                    {
-                        var streamPosition = new StreamPosition(_startingPosition.Value);
+                    var fromStream = _startingPosition.HasValue ?
+                        FromStream.After(new StreamPosition(_startingPosition.Value)) :
+                        FromStream.Start;
 
-                        _subscription = _eventStoreClient.SubscribeToStreamAsync(
-                            _streamName,
-                            FromStream.After(streamPosition),
-                            (s, e, t) => EventAppeared(e),
-                            false,
-                            SubscriptionDropped).Result;
-                    }
-                    else
-                    {
-                        _subscription = _eventStoreClient.SubscribeToStreamAsync(
-                            _streamName,
-                            FromStream.End,
-                            (s, e, t) => EventAppeared(e),
-                            false,
-                            SubscriptionDropped).Result;
-                    }
-
-                    var catchUpSettings = new CatchUpSubscriptionSettings(_maxLiveQueueSize, _catchupPageSize, true, true);
-                    _subscription = _eventStoreClient.SubscribeToStreamFrom(_streamName, _startingPosition, catchUpSettings, (s, e) => EventAppeared(e), LiveProcessingStarted, SubscriptionDropped);
+                    _subscription = _eventStoreClient.SubscribeToStreamAsync(
+                           _streamName,
+                           fromStream,
+                           (s, e, t) => EventAppeared(e),
+                           resolveLinkTos: true,
+                           subscriptionDropped: SubscriptionDropped).Result;
                 }
             }
 
@@ -322,16 +289,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         {
             lock (_subscriptionLock)
             {
-                switch (_subscription)
-                {
-                    case EventStoreSubscription liveSubscription:
-                        liveSubscription.Close();
-                        break;
-                    case EventStoreCatchUpSubscription catchupSubscription:
-                        catchupSubscription.Stop();
-                        break;
-                    default: return;
-                }
+                _subscription.Dispose();
             }
         }
 
@@ -342,10 +300,8 @@ namespace CorshamScience.MessageDispatch.EventStore
             ILogger logger,
             TimeSpan? heartbeatFrequency,
             TimeSpan? heartbeatTimeout,
-            int? startingPosition = null,
-            int catchupPageSize = 1024,
+            ulong? startingPosition = null,
             int upperQueueBound = 2048,
-            int maxLiveQueueSize = 10000,
             bool liveOnly = false)
         {
             _liveProcessingTimer.Elapsed += LiveProcessingTimerOnElapsed;
@@ -356,8 +312,6 @@ namespace CorshamScience.MessageDispatch.EventStore
             _dispatcher = dispatcher;
             _streamName = streamName;
             _eventStoreClient = connection;
-            _catchupPageSize = catchupPageSize;
-            _maxLiveQueueSize = maxLiveQueueSize;
             _liveOnly = liveOnly;
 
             if (heartbeatTimeout != null && heartbeatFrequency != null)
@@ -432,7 +386,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             foreach (var item in _queue.GetConsumingEnumerable())
             {
                 ProcessEvent(item);
-                _lastDispatchedEventNumber = item.OriginalEventNumber.ToInt64();
+                _lastDispatchedEventNumber = item.OriginalEventNumber.ToUInt64();
             }
         }
 
@@ -445,6 +399,12 @@ namespace CorshamScience.MessageDispatch.EventStore
             else
             {
                 _logger.LogInformation("Event Store subscription dropped {0}", subscriptionDropReason.ToString());
+            }
+
+            if (subscriptionDropReason == SubscriptionDroppedReason.Disposed)
+            {
+                _logger.LogInformation("Not attempting to restart subscription was disposed. Subscription is dead.");
+                return;
             }
 
             RestartSubscription();
@@ -472,11 +432,11 @@ namespace CorshamScience.MessageDispatch.EventStore
 
             if (_catchingUp)
             {
-                _lastNonLiveEventNumber = resolvedEvent.OriginalEventNumber.ToInt64();
+                _lastNonLiveEventNumber = resolvedEvent.OriginalEventNumber.ToUInt64();
             }
 
             _queue.Add(resolvedEvent);
-            _lastReceivedEventNumber = resolvedEvent.OriginalEventNumber.ToInt64();
+            _lastReceivedEventNumber = resolvedEvent.OriginalEventNumber.ToUInt64();
 
             return Task.CompletedTask;
         }
@@ -498,7 +458,7 @@ namespace CorshamScience.MessageDispatch.EventStore
                     return;
                 }
 
-                _checkpoint.Write(resolvedEvent.OriginalEventNumber.ToInt64());
+                _checkpoint.Write(resolvedEvent.OriginalEventNumber.ToUInt64());
                 _checkpoint.Flush();
             }
             catch (Exception ex)
@@ -509,18 +469,7 @@ namespace CorshamScience.MessageDispatch.EventStore
 
         private void KillSubscription()
         {
-            switch (_subscription)
-            {
-                case EventStoreSubscription liveSubscription:
-                    liveSubscription.Dispose();
-                    break;
-                case EventStoreCatchUpSubscription catchUpSubscription:
-                    catchUpSubscription.Stop();
-                    break;
-                case null: break;
-                default: throw new InvalidOperationException("The event store subscription was invalid.");
-            }
-
+            _subscription.Dispose();
             _subscription = null;
         }
     }
