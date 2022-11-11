@@ -410,17 +410,6 @@ namespace CorshamScience.MessageDispatch.EventStore
             RestartSubscription();
         }
 
-        private void LiveProcessingStarted()
-        {
-            lock (_liveProcessingTimer)
-            {
-                _liveProcessingTimer.Stop();
-                _catchingUp = false;
-            }
-
-            _logger.LogInformation("Live event processing started");
-        }
-
         private Task EventAppeared(ResolvedEvent resolvedEvent)
         {
             if (resolvedEvent.Event != null && resolvedEvent.Event.EventType == HeartbeatEventType)
