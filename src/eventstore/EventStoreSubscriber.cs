@@ -5,23 +5,18 @@
 namespace CorshamScience.MessageDispatch.EventStore
 {
     using System;
-    using System.Collections.Concurrent;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
-    using System.Timers;
     using CorshamScience.MessageDispatch.Core;
     using global::EventStore.Client;
     using Microsoft.Extensions.Logging;
-    using Timer = System.Timers.Timer;
 
     /// <summary>
     /// Subscriber for event store.
     /// </summary>
     public class EventStoreSubscriber
     {
-        private readonly Timer _liveProcessingTimer = new Timer(TimeSpan.FromMinutes(10).TotalMilliseconds);
-
         private readonly WriteThroughFileCheckpoint _checkpoint;
         private readonly object _subscriptionLock = new object();
 
@@ -31,15 +26,12 @@ namespace CorshamScience.MessageDispatch.EventStore
         private string _streamName;
         private bool _liveOnly;
 
-        private ulong _lastNonLiveEventNumber = ulong.MinValue;
-        private ulong? _lastReceivedEventNumber;
+        private ulong _lastNonLiveEventNumber = StreamPosition.Start;
+        private ulong? _lastProcessedEventNumber;
         private int _eventsProcessed;
         private bool _catchingUp = true;
 
-        private BlockingCollection<ResolvedEvent> _queue;
         private IDispatcher<ResolvedEvent> _dispatcher;
-        private ulong _lastDispatchedEventNumber;
-
         private ILogger _logger;
 
         private EventStoreSubscriber(
@@ -47,37 +39,34 @@ namespace CorshamScience.MessageDispatch.EventStore
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
-            ulong? startingPosition,
-            int upperQueueBound = 2048)
-            => Init(eventStoreClient, dispatcher, streamName, logger, startingPosition, upperQueueBound);
+            ulong? startingPosition)
+            => Init(eventStoreClient, dispatcher, streamName, logger, startingPosition);
 
         private EventStoreSubscriber(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             ILogger logger,
             string streamName,
-            string checkpointFilePath,
-            int upperQueueBound = 2048)
+            string checkpointFilePath)
         {
-            _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, "lastProcessedPosition", false, ulong.MinValue);
+            _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, "lastProcessedPosition", false, StreamPosition.Start);
             var initialCheckpointPosition = _checkpoint.Read();
             ulong? startingPosition = null;
 
-            if (initialCheckpointPosition != ulong.MinValue)
+            if (initialCheckpointPosition != StreamPosition.Start)
             {
                 startingPosition = initialCheckpointPosition;
             }
 
-            Init(eventStoreClient, dispatcher, streamName, logger, startingPosition, upperQueueBound);
+            Init(eventStoreClient, dispatcher, streamName, logger, startingPosition);
         }
 
         private EventStoreSubscriber(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
-            ILogger logger,
-            int upperQueueBound = 2048)
-            => Init(eventStoreClient, dispatcher, streamName, logger, upperQueueBound: upperQueueBound, liveOnly: true);
+            ILogger logger)
+            => Init(eventStoreClient, dispatcher, streamName, logger, liveOnly: true);
 
         /// <summary>
         /// Gets a new catchup progress object.
@@ -101,7 +90,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <summary>
         /// Gets a value indicating whether the view model is ready or not.
         /// </summary>
-        public bool ViewModelsReady => !_catchingUp && _lastDispatchedEventNumber >= _lastNonLiveEventNumber;
+        public bool ViewModelsReady => !_catchingUp && _lastProcessedEventNumber >= _lastNonLiveEventNumber;
 
         /// <summary>
         /// Creates a live eventstore subscription.
@@ -110,18 +99,16 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="dispatcher">Dispatcher.</param>
         /// <param name="streamName">Stream name to push events into.</param>
         /// <param name="logger">Logger.</param>
-        /// <param name="upperQueueBound">Upper Queue Bound.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
         public static EventStoreSubscriber CreateLiveSubscription(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
-            ILogger logger,
-            int upperQueueBound = 2048)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, upperQueueBound);
+            ILogger logger)
+            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger);
 
-#pragma warning disable CS0618 // Type or member is obsolete
+        #pragma warning disable CS0618 // Type or member is obsolete
         /// <summary>
         /// Creates an eventstore catchup subscription using a checkpoint file.
         /// </summary>
@@ -130,7 +117,6 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="streamName">Stream name to push events into.</param>
         /// <param name="logger">Logger.</param>
         /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
-        /// <param name="upperQueueBound">Upper Queue Bound.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
         public static EventStoreSubscriber CreateCatchupSubscriptionUsingCheckpoint(
@@ -138,9 +124,8 @@ namespace CorshamScience.MessageDispatch.EventStore
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
-            string checkpointFilePath,
-            int upperQueueBound = 2048)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, logger, streamName, checkpointFilePath, upperQueueBound);
+            string checkpointFilePath)
+            => new EventStoreSubscriber(eventStoreClient, dispatcher, logger, streamName, checkpointFilePath);
 
         /// <summary>
         /// Creates an ecventstore catchup subscription from a position.
@@ -150,7 +135,6 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="streamName">Stream name to push events into.</param>
         /// <param name="logger">Logger.</param>
         /// <param name="startingPosition">Starting Position.</param>
-        /// <param name="upperQueueBound">Upper Queue Bound.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
         public static EventStoreSubscriber CreateCatchupSubscriptionFromPosition(
@@ -158,52 +142,74 @@ namespace CorshamScience.MessageDispatch.EventStore
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
-            ulong? startingPosition,
-            int upperQueueBound = 2048)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, startingPosition, upperQueueBound);
+            ulong? startingPosition)
+            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, startingPosition);
 #pragma warning restore CS0618 // Type or member is obsolete
 
         /// <summary>
         /// Start the subscriber.
         /// </summary>
-        /// <param name="restart">Starting from a restart.</param>
-        public void Start(bool restart = false)
+        public void Start()
         {
-            lock (_subscriptionLock)
+            while (true)
             {
-                KillSubscription();
+                var resubscribed = false;
 
-                if (_liveOnly)
+                try
                 {
-                    _subscription = _eventStoreClient.SubscribeToStreamAsync(
-                        _streamName,
-                        FromStream.End,
-                        (s, e, t) => EventAppeared(e),
-                        resolveLinkTos: true,
-                        subscriptionDropped: SubscriptionDropped).Result;
+                    Monitor.Enter(_subscriptionLock);
+
+                    KillSubscription();
+
+                    // No synchronization context is needed to disable synchronization context.
+                    // That enables running asynchronous method not causing deadlocks.
+                    // As this is a background process then we don't need to have async context here.
+                    using (NoSynchronizationContextScope.Enter())
+                    {
+                        if (_liveOnly)
+                        {
+                            _subscription = _eventStoreClient.SubscribeToStreamAsync(
+                                _streamName,
+                                FromStream.End,
+                                (s, e, t) => EventAppeared(e),
+                                resolveLinkTos: true,
+                                subscriptionDropped: SubscriptionDropped).Result;
+                        }
+                        else
+                        {
+                            var fromStream = _startingPosition.HasValue ?
+                                FromStream.After(new StreamPosition(_startingPosition.Value)) :
+                                FromStream.Start;
+
+                            _subscription = _eventStoreClient.SubscribeToStreamAsync(
+                                   _streamName,
+                                   fromStream,
+                                   (s, e, t) => EventAppeared(e),
+                                   resolveLinkTos: true,
+                                   subscriptionDropped: SubscriptionDropped).Result;
+                        }
+                    }
+
+                    resubscribed = true;
                 }
-                else
+                catch (Exception ex)
                 {
-                    var fromStream = _startingPosition.HasValue ?
-                        FromStream.After(new StreamPosition(_startingPosition.Value)) :
-                        FromStream.Start;
-
-                    _subscription = _eventStoreClient.SubscribeToStreamAsync(
-                           _streamName,
-                           fromStream,
-                           (s, e, t) => EventAppeared(e),
-                           resolveLinkTos: true,
-                           subscriptionDropped: SubscriptionDropped).Result;
+                    _logger.LogWarning(ex, "Failed to resubscribe to '{StreamName}' dropped with '{ExceptionMessage}{ExceptionStackTrace}'", _streamName, ex.Message, ex.StackTrace);
                 }
-            }
+                finally
+                {
+                    Monitor.Exit(_subscriptionLock);
+                }
 
-            if (restart)
-            {
-                return;
-            }
+                if (resubscribed)
+                {
+                    break;
+                }
 
-            var processor = new Thread(ProcessEvents) { IsBackground = true };
-            processor.Start();
+                // Sleep between reconnections to not flood the database or not kill the CPU with infinite loop
+                // Randomness added to reduce the chance of multiple subscriptions trying to reconnect at the same time
+                Thread.Sleep(1000 + new Random((int)DateTime.UtcNow.Ticks).Next(1000));
+            }
         }
 
         /// <summary>
@@ -224,52 +230,25 @@ namespace CorshamScience.MessageDispatch.EventStore
             string streamName,
             ILogger logger,
             ulong? startingPosition = null,
-            int upperQueueBound = 2048,
             bool liveOnly = false)
         {
-            _liveProcessingTimer.Elapsed += LiveProcessingTimerOnElapsed;
             _logger = logger;
             _eventsProcessed = 0;
             _startingPosition = startingPosition;
-            _lastReceivedEventNumber = startingPosition;
+            _lastProcessedEventNumber = startingPosition;
             _dispatcher = dispatcher;
             _streamName = streamName;
             _eventStoreClient = connection;
             _liveOnly = liveOnly;
-
-            _queue = new BlockingCollection<ResolvedEvent>(upperQueueBound);
         }
 
         private void RestartSubscription()
         {
-            lock (_subscriptionLock)
-            {
-                KillSubscription();
+            _startingPosition = _lastProcessedEventNumber;
+            _lastNonLiveEventNumber = StreamPosition.Start;
+            _catchingUp = true;
 
-                _startingPosition = _lastReceivedEventNumber;
-                _lastNonLiveEventNumber = ulong.MinValue;
-                _catchingUp = true;
-                Start(true);
-            }
-
-            lock (_liveProcessingTimer)
-            {
-                if (!_liveProcessingTimer.Enabled)
-                {
-                    _liveProcessingTimer.Start();
-                }
-            }
-        }
-
-        private void LiveProcessingTimerOnElapsed(object sender, ElapsedEventArgs elapsedEventArgs) => _logger.LogError("Event Store Subscription has been down for 10 minutes");
-
-        private void ProcessEvents()
-        {
-            foreach (var item in _queue.GetConsumingEnumerable())
-            {
-                ProcessEvent(item);
-                _lastDispatchedEventNumber = item.OriginalEventNumber.ToUInt64();
-            }
+            Start();
         }
 
         private void SubscriptionDropped(StreamSubscription eventStoreCatchUpSubscription, SubscriptionDroppedReason subscriptionDropReason, Exception ex)
@@ -299,8 +278,8 @@ namespace CorshamScience.MessageDispatch.EventStore
                 _lastNonLiveEventNumber = resolvedEvent.OriginalEventNumber.ToUInt64();
             }
 
-            _queue.Add(resolvedEvent);
-            _lastReceivedEventNumber = resolvedEvent.OriginalEventNumber.ToUInt64();
+            ProcessEvent(resolvedEvent);
+            _lastProcessedEventNumber = resolvedEvent.OriginalEventNumber.ToUInt64();
 
             return Task.CompletedTask;
         }
