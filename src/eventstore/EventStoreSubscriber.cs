@@ -25,11 +25,12 @@ namespace CorshamScience.MessageDispatch.EventStore
         private StreamSubscription _subscription;
         private string _streamName;
         private bool _liveOnly;
-
-        private ulong _lastNonLiveEventNumber = StreamPosition.Start;
+        private bool _isSubscribed;
         private ulong? _lastProcessedEventNumber;
         private int _eventsProcessed;
-        private bool _catchingUp = true;
+        private ulong _liveEventThreshold;
+        private ulong _lastStreamPosition;
+        private DateTime _lastStreamPositionTimestamp;
 
         private IDispatcher<ResolvedEvent> _dispatcher;
         private ILogger _logger;
@@ -39,15 +40,17 @@ namespace CorshamScience.MessageDispatch.EventStore
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
-            ulong? startingPosition)
-            => Init(eventStoreClient, dispatcher, streamName, logger, startingPosition);
+            ulong? startingPosition,
+            ulong liveEventThreshold)
+            => Init(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold, startingPosition);
 
         private EventStoreSubscriber(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             ILogger logger,
             string streamName,
-            string checkpointFilePath)
+            string checkpointFilePath,
+            ulong liveEventThreshold)
         {
             _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, "lastProcessedPosition", false, StreamPosition.Start);
             var initialCheckpointPosition = _checkpoint.Read();
@@ -58,15 +61,16 @@ namespace CorshamScience.MessageDispatch.EventStore
                 startingPosition = initialCheckpointPosition;
             }
 
-            Init(eventStoreClient, dispatcher, streamName, logger, startingPosition);
+            Init(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold, startingPosition);
         }
 
         private EventStoreSubscriber(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
-            ILogger logger)
-            => Init(eventStoreClient, dispatcher, streamName, logger, liveOnly: true);
+            ILogger logger,
+            ulong liveEventThreshold)
+            => Init(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold, liveOnly: true);
 
         /// <summary>
         /// Gets a new catchup progress object.
@@ -76,13 +80,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         {
             get
             {
-                var lastStreamPosition = _eventStoreClient.ReadStreamAsync(
-                    Direction.Backwards,
-                    _streamName,
-                    StreamPosition.End,
-                    maxCount: 1,
-                    resolveLinkTos: false).LastAsync().Result.OriginalEventNumber.ToUInt64();
-
+                var lastStreamPosition = GetLastStreamPosition();
                 return new CatchupProgress(_eventsProcessed, _startingPosition ?? 0, _streamName, lastStreamPosition);
             }
         }
@@ -90,7 +88,23 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <summary>
         /// Gets a value indicating whether the view model is ready or not.
         /// </summary>
-        public bool ViewModelsReady => !_catchingUp && _lastProcessedEventNumber >= _lastNonLiveEventNumber;
+        /// <returns>Returns true if catchup is within threshold.</returns>
+        public bool IsLive
+        {
+            get
+            {
+                if (!_isSubscribed)
+                {
+                    return false;
+                }
+
+                var catchUpProgress = CatchUpPercentage;
+                var currentPosition = catchUpProgress.StartPosition + (ulong)catchUpProgress.EventsProcessed;
+                var currentPositionFromEnd = catchUpProgress.TotalEvents - currentPosition;
+
+                return currentPositionFromEnd < _liveEventThreshold;
+            }
+        }
 
         /// <summary>
         /// Creates a live eventstore subscription.
@@ -99,16 +113,18 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="dispatcher">Dispatcher.</param>
         /// <param name="streamName">Stream name to push events into.</param>
         /// <param name="logger">Logger.</param>
+        /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
         public static EventStoreSubscriber CreateLiveSubscription(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
-            ILogger logger)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger);
+            ILogger logger,
+            ulong liveEventThreshold = 10)
+            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold);
 
-        #pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
         /// <summary>
         /// Creates an eventstore catchup subscription using a checkpoint file.
         /// </summary>
@@ -117,6 +133,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="streamName">Stream name to push events into.</param>
         /// <param name="logger">Logger.</param>
         /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
+        /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
         public static EventStoreSubscriber CreateCatchupSubscriptionUsingCheckpoint(
@@ -124,8 +141,9 @@ namespace CorshamScience.MessageDispatch.EventStore
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
-            string checkpointFilePath)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, logger, streamName, checkpointFilePath);
+            string checkpointFilePath,
+            ulong liveEventThreshold = 10)
+            => new EventStoreSubscriber(eventStoreClient, dispatcher, logger, streamName, checkpointFilePath, liveEventThreshold);
 
         /// <summary>
         /// Creates an ecventstore catchup subscription from a position.
@@ -135,6 +153,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="streamName">Stream name to push events into.</param>
         /// <param name="logger">Logger.</param>
         /// <param name="startingPosition">Starting Position.</param>
+        /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
         public static EventStoreSubscriber CreateCatchupSubscriptionFromPosition(
@@ -142,8 +161,9 @@ namespace CorshamScience.MessageDispatch.EventStore
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
-            ulong? startingPosition)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, startingPosition);
+            ulong? startingPosition,
+            ulong liveEventThreshold = 10)
+            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, startingPosition, liveEventThreshold);
 #pragma warning restore CS0618 // Type or member is obsolete
 
         /// <summary>
@@ -153,7 +173,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         {
             while (true)
             {
-                var resubscribed = false;
+                _isSubscribed = false;
 
                 try
                 {
@@ -190,7 +210,7 @@ namespace CorshamScience.MessageDispatch.EventStore
                         }
                     }
 
-                    resubscribed = true;
+                    _isSubscribed = true;
                 }
                 catch (Exception ex)
                 {
@@ -201,7 +221,7 @@ namespace CorshamScience.MessageDispatch.EventStore
                     Monitor.Exit(_subscriptionLock);
                 }
 
-                if (resubscribed)
+                if (_isSubscribed)
                 {
                     break;
                 }
@@ -220,7 +240,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         {
             lock (_subscriptionLock)
             {
-                _subscription.Dispose();
+                KillSubscription();
             }
         }
 
@@ -229,6 +249,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
+            ulong liveEventThreshold,
             ulong? startingPosition = null,
             bool liveOnly = false)
         {
@@ -240,15 +261,9 @@ namespace CorshamScience.MessageDispatch.EventStore
             _streamName = streamName;
             _eventStoreClient = connection;
             _liveOnly = liveOnly;
-        }
-
-        private void RestartSubscription()
-        {
-            _startingPosition = _lastProcessedEventNumber;
-            _lastNonLiveEventNumber = StreamPosition.Start;
-            _catchingUp = true;
-
-            Start();
+            _liveEventThreshold = liveEventThreshold;
+            _lastStreamPosition = StreamPosition.End;
+            _lastStreamPositionTimestamp = DateTime.MinValue;
         }
 
         private void SubscriptionDropped(StreamSubscription eventStoreCatchUpSubscription, SubscriptionDroppedReason subscriptionDropReason, Exception ex)
@@ -268,16 +283,13 @@ namespace CorshamScience.MessageDispatch.EventStore
                 return;
             }
 
-            RestartSubscription();
+            _isSubscribed = false;
+            _startingPosition = _lastProcessedEventNumber;
+            Start();
         }
 
         private Task EventAppeared(ResolvedEvent resolvedEvent)
         {
-            if (_catchingUp)
-            {
-                _lastNonLiveEventNumber = resolvedEvent.OriginalEventNumber.ToUInt64();
-            }
-
             ProcessEvent(resolvedEvent);
             _lastProcessedEventNumber = resolvedEvent.OriginalEventNumber.ToUInt64();
 
@@ -310,10 +322,30 @@ namespace CorshamScience.MessageDispatch.EventStore
             }
         }
 
+        private ulong GetLastStreamPosition()
+        {
+            var streamPositionIsStale = (DateTime.UtcNow - _lastStreamPositionTimestamp) > TimeSpan.FromSeconds(10);
+
+            if (_isSubscribed && streamPositionIsStale)
+            {
+                _lastStreamPosition = _eventStoreClient.ReadStreamAsync(
+                    Direction.Backwards,
+                    _streamName,
+                    StreamPosition.End,
+                    maxCount: 1,
+                    resolveLinkTos: false).LastAsync().Result.OriginalEventNumber.ToUInt64();
+
+                _lastStreamPositionTimestamp = DateTime.UtcNow;
+            }
+
+            return _lastStreamPosition;
+        }
+
         private void KillSubscription()
         {
             _subscription.Dispose();
             _subscription = null;
+            _isSubscribed = false;
         }
     }
 }
