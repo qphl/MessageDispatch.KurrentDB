@@ -6,7 +6,6 @@ namespace CorshamScience.MessageDispatch.EventStore
 {
     using System;
     using System.Collections.Concurrent;
-    using System.Collections.Generic;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
@@ -21,10 +20,7 @@ namespace CorshamScience.MessageDispatch.EventStore
     /// </summary>
     public class EventStoreSubscriber
     {
-        private const string HeartbeatEventType = "SubscriberHeartbeat";
-
         private readonly Timer _liveProcessingTimer = new Timer(TimeSpan.FromMinutes(10).TotalMilliseconds);
-        private readonly string _heartbeatStreamName = $"SubscriberHeartbeat-{Guid.NewGuid()}";
 
         private readonly WriteThroughFileCheckpoint _checkpoint;
         private readonly object _subscriptionLock = new object();
@@ -40,61 +36,28 @@ namespace CorshamScience.MessageDispatch.EventStore
         private int _eventsProcessed;
         private bool _catchingUp = true;
 
-        private TimeSpan _heartbeatTimeout;
-        private DateTime _lastHeartbeat;
-        private Timer _heartbeatTimer;
-        private bool _usingHeartbeats;
-
         private BlockingCollection<ResolvedEvent> _queue;
         private IDispatcher<ResolvedEvent> _dispatcher;
         private ulong _lastDispatchedEventNumber;
 
         private ILogger _logger;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="EventStoreSubscriber"/> class.
-        /// </summary>
-        /// <param name="eventStoreClient">Eventstore connection.</param>
-        /// <param name="dispatcher">Dispatcher.</param>
-        /// <param name="streamName">Stream name to push events into.</param>
-        /// <param name="logger">Logger.</param>
-        /// <param name="startingPosition">Starting Position.</param>
-        /// <param name="upperQueueBound">Upper Queue Bound.</param>
-        /// <param name="heartbeatFrequency">Frequency of heartbeat.</param>
-        /// <param name="heartbeatTimeout">Timeout of heartbeat.</param>
-        [Obsolete("Please use new static method CreateCatchUpSubscirptionFromPosition, this constructor will be removed in the future.")]
-        public EventStoreSubscriber(
+        private EventStoreSubscriber(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
             ulong? startingPosition,
-            int upperQueueBound = 2048,
-            TimeSpan? heartbeatFrequency = null,
-            TimeSpan? heartbeatTimeout = null)
-            => Init(eventStoreClient, dispatcher, streamName, logger, heartbeatFrequency, heartbeatTimeout, startingPosition, upperQueueBound);
+            int upperQueueBound = 2048)
+            => Init(eventStoreClient, dispatcher, streamName, logger, startingPosition, upperQueueBound);
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="EventStoreSubscriber"/> class.
-        /// </summary>
-        /// <param name="eventStoreClient">Eventstore connection.</param>
-        /// <param name="dispatcher">Dispatcher.</param>
-        /// <param name="streamName">Stream name to push events into.</param>
-        /// <param name="logger">Logger.</param>
-        /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
-        /// <param name="upperQueueBound">Upper Queue Bound.</param>
-        /// <param name="heartbeatFrequency">Frequency of heartbeat.</param>
-        /// <param name="heartbeatTimeout">Timeout of heartbeat.</param>
-        [Obsolete("Please use new static method CreateCatchupSubscriptionUsingCheckpoint, this constructor will be removed in the future.")]
-        public EventStoreSubscriber(
+        private EventStoreSubscriber(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             ILogger logger,
             string streamName,
             string checkpointFilePath,
-            int upperQueueBound = 2048,
-            TimeSpan? heartbeatFrequency = null,
-            TimeSpan? heartbeatTimeout = null)
+            int upperQueueBound = 2048)
         {
             _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, "lastProcessedPosition", false, ulong.MinValue);
             var initialCheckpointPosition = _checkpoint.Read();
@@ -105,7 +68,7 @@ namespace CorshamScience.MessageDispatch.EventStore
                 startingPosition = initialCheckpointPosition;
             }
 
-            Init(eventStoreClient, dispatcher, streamName, logger, heartbeatFrequency, heartbeatTimeout, startingPosition, upperQueueBound);
+            Init(eventStoreClient, dispatcher, streamName, logger, startingPosition, upperQueueBound);
         }
 
         private EventStoreSubscriber(
@@ -113,10 +76,8 @@ namespace CorshamScience.MessageDispatch.EventStore
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
-            int upperQueueBound = 2048,
-            TimeSpan? heartbeatFrequency = null,
-            TimeSpan? heartbeatTImeout = null)
-            => Init(eventStoreClient, dispatcher, streamName, logger, heartbeatFrequency, heartbeatTImeout, upperQueueBound: upperQueueBound, liveOnly: true);
+            int upperQueueBound = 2048)
+            => Init(eventStoreClient, dispatcher, streamName, logger, upperQueueBound: upperQueueBound, liveOnly: true);
 
         /// <summary>
         /// Gets a new catchup progress object.
@@ -150,8 +111,6 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="streamName">Stream name to push events into.</param>
         /// <param name="logger">Logger.</param>
         /// <param name="upperQueueBound">Upper Queue Bound.</param>
-        /// <param name="heartbeatFrequency">Frequency of heartbeat.</param>
-        /// <param name="heartbeatTimeout">Timeout of heartbeat.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
         public static EventStoreSubscriber CreateLiveSubscription(
@@ -159,10 +118,8 @@ namespace CorshamScience.MessageDispatch.EventStore
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
-            int upperQueueBound = 2048,
-            TimeSpan? heartbeatFrequency = null,
-            TimeSpan? heartbeatTimeout = null)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, upperQueueBound, heartbeatFrequency, heartbeatTimeout);
+            int upperQueueBound = 2048)
+            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, upperQueueBound);
 
 #pragma warning disable CS0618 // Type or member is obsolete
         /// <summary>
@@ -174,8 +131,6 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="logger">Logger.</param>
         /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
         /// <param name="upperQueueBound">Upper Queue Bound.</param>
-        /// <param name="heartbeatFrequency">Frequency of heartbeat.</param>
-        /// <param name="heartbeatTimeout">Timeout of heartbeat.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
         public static EventStoreSubscriber CreateCatchupSubscriptionUsingCheckpoint(
@@ -184,10 +139,8 @@ namespace CorshamScience.MessageDispatch.EventStore
             string streamName,
             ILogger logger,
             string checkpointFilePath,
-            int upperQueueBound = 2048,
-            TimeSpan? heartbeatFrequency = null,
-            TimeSpan? heartbeatTimeout = null)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, logger, streamName, checkpointFilePath, upperQueueBound, heartbeatFrequency, heartbeatTimeout);
+            int upperQueueBound = 2048)
+            => new EventStoreSubscriber(eventStoreClient, dispatcher, logger, streamName, checkpointFilePath, upperQueueBound);
 
         /// <summary>
         /// Creates an ecventstore catchup subscription from a position.
@@ -198,8 +151,6 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="logger">Logger.</param>
         /// <param name="startingPosition">Starting Position.</param>
         /// <param name="upperQueueBound">Upper Queue Bound.</param>
-        /// <param name="heartbeatFrequency">Frequency of heartbeat.</param>
-        /// <param name="heartbeatTimeout">Timeout of heartbeat.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
         public static EventStoreSubscriber CreateCatchupSubscriptionFromPosition(
@@ -208,24 +159,9 @@ namespace CorshamScience.MessageDispatch.EventStore
             string streamName,
             ILogger logger,
             ulong? startingPosition,
-            int upperQueueBound = 2048,
-            TimeSpan? heartbeatFrequency = null,
-            TimeSpan? heartbeatTimeout = null)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, startingPosition, upperQueueBound, heartbeatFrequency, heartbeatTimeout);
+            int upperQueueBound = 2048)
+            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, startingPosition, upperQueueBound);
 #pragma warning restore CS0618 // Type or member is obsolete
-
-        /// <summary>
-        /// Sends an event to the heartbeat stream.
-        /// </summary>
-        public void SendHeartbeat()
-            => _eventStoreClient.AppendToStreamAsync(_heartbeatStreamName, StreamState.Any, new List<EventData>
-            {
-                new EventData(
-                    Uuid.NewUuid(),
-                    HeartbeatEventType,
-                    new byte[0],
-                    new byte[0]),
-            }).Wait();
 
         /// <summary>
         /// Start the subscriber.
@@ -233,12 +169,6 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="restart">Starting from a restart.</param>
         public void Start(bool restart = false)
         {
-            if (_usingHeartbeats)
-            {
-                SendHeartbeat();
-                _heartbeatTimer.Start();
-            }
-
             lock (_subscriptionLock)
             {
                 KillSubscription();
@@ -272,11 +202,6 @@ namespace CorshamScience.MessageDispatch.EventStore
                 return;
             }
 
-            if (_usingHeartbeats)
-            {
-                _eventStoreClient.SetStreamMetadataAsync(_heartbeatStreamName, StreamState.Any, new StreamMetadata(2));
-            }
-
             var processor = new Thread(ProcessEvents) { IsBackground = true };
             processor.Start();
         }
@@ -298,8 +223,6 @@ namespace CorshamScience.MessageDispatch.EventStore
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
-            TimeSpan? heartbeatFrequency,
-            TimeSpan? heartbeatTimeout,
             ulong? startingPosition = null,
             int upperQueueBound = 2048,
             bool liveOnly = false)
@@ -314,52 +237,11 @@ namespace CorshamScience.MessageDispatch.EventStore
             _eventStoreClient = connection;
             _liveOnly = liveOnly;
 
-            if (heartbeatTimeout != null && heartbeatFrequency != null)
-            {
-                if (heartbeatFrequency > heartbeatTimeout)
-                {
-                    throw new ArgumentException("Heartbeat timeout must be greater than heartbeat frequency", nameof(heartbeatTimeout));
-                }
-
-                _heartbeatTimer = new Timer(heartbeatFrequency.Value.TotalMilliseconds);
-                _heartbeatTimer.Elapsed += HeartbeatTimerOnElapsed;
-
-                _heartbeatTimeout = heartbeatTimeout.Value;
-                _lastHeartbeat = DateTime.UtcNow;
-                _usingHeartbeats = true;
-            }
-            else if (heartbeatTimeout == null && heartbeatFrequency != null)
-            {
-                throw new ArgumentException("Heartbeat timeout must be set if heartbeat frequency is set", nameof(heartbeatTimeout));
-            }
-            else if (heartbeatTimeout != null)
-            {
-                throw new ArgumentException("Heartbeat frequency must be set if heartbeat timeout is set", nameof(heartbeatFrequency));
-            }
-
             _queue = new BlockingCollection<ResolvedEvent>(upperQueueBound);
-        }
-
-        private void HeartbeatTimerOnElapsed(object sender, ElapsedEventArgs elapsedEventArgs)
-        {
-            SendHeartbeat();
-
-            if (ViewModelsReady || _lastHeartbeat >= DateTime.UtcNow.Subtract(_heartbeatTimeout))
-            {
-                return;
-            }
-
-            _logger.LogError($"Subscriber heartbeat timeout, last heartbeat: {_lastHeartbeat:G} restarting subscription");
-            RestartSubscription();
         }
 
         private void RestartSubscription()
         {
-            if (_usingHeartbeats)
-            {
-                _heartbeatTimer.Stop();
-            }
-
             lock (_subscriptionLock)
             {
                 KillSubscription();
@@ -412,13 +294,6 @@ namespace CorshamScience.MessageDispatch.EventStore
 
         private Task EventAppeared(ResolvedEvent resolvedEvent)
         {
-            if (resolvedEvent.Event != null && resolvedEvent.Event.EventType == HeartbeatEventType)
-            {
-                _lastHeartbeat = DateTime.UtcNow;
-
-                return Task.CompletedTask;
-            }
-
             if (_catchingUp)
             {
                 _lastNonLiveEventNumber = resolvedEvent.OriginalEventNumber.ToUInt64();
