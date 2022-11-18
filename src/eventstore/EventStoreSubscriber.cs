@@ -343,8 +343,12 @@ namespace CorshamScience.MessageDispatch.EventStore
 
         private void KillSubscription()
         {
-            _subscription.Dispose();
-            _subscription = null;
+            if (_subscription != null)
+            {
+                _subscription.Dispose();
+                _subscription = null;
+            }
+
             _isSubscribed = false;
         }
     }
