@@ -52,13 +52,13 @@ namespace CorshamScience.MessageDispatch.EventStore
             string checkpointFilePath,
             ulong liveEventThreshold)
         {
-            _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, "lastProcessedPosition", false, StreamPosition.Start);
+            _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, "lastProcessedPosition", false, -1);
             var initialCheckpointPosition = _checkpoint.Read();
             ulong? startingPosition = null;
 
-            if (initialCheckpointPosition != StreamPosition.Start)
+            if (initialCheckpointPosition != -1)
             {
-                startingPosition = initialCheckpointPosition;
+                startingPosition = (ulong)initialCheckpointPosition;
             }
 
             Init(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold, startingPosition);
@@ -313,7 +313,7 @@ namespace CorshamScience.MessageDispatch.EventStore
                     return;
                 }
 
-                _checkpoint.Write(resolvedEvent.OriginalEventNumber.ToUInt64());
+                _checkpoint.Write(resolvedEvent.OriginalEventNumber.ToInt64());
                 _checkpoint.Flush();
             }
             catch (Exception ex)

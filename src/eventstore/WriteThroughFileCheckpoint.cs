@@ -22,8 +22,8 @@ namespace CorshamScience.MessageDispatch.EventStore
         private readonly MemoryStream _memStream;
         private readonly byte[] _buffer;
 
-        private ulong _last;
-        private ulong _lastFlushed;
+        private long _last;
+        private long _lastFlushed;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="WriteThroughFileCheckpoint"/> class.
@@ -32,7 +32,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="name">The name of the checkpoint to write.</param>
         /// <param name="cached">Indicates if the checkpoint has been cached.</param>
         /// <param name="initValue">The initial value to write.</param>
-        public WriteThroughFileCheckpoint(string filename, string name, bool cached, ulong initValue = 0)
+        public WriteThroughFileCheckpoint(string filename, string name, bool cached, long initValue = 0)
         {
             Name = name;
             _cached = cached;
@@ -53,6 +53,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             _stream.SetLength(4096);
             _reader = new BinaryReader(_stream);
             _writer = new BinaryWriter(_memStream);
+
             if (!exists)
             {
                 Write(initValue);
@@ -71,7 +72,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// Writes the checkpoint.
         /// </summary>
         /// <param name="checkpoint">Represents the new checkpoint.</param>
-        public void Write(ulong checkpoint)
+        public void Write(long checkpoint)
         {
             Interlocked.Exchange(ref _last, checkpoint);
         }
@@ -88,23 +89,21 @@ namespace CorshamScience.MessageDispatch.EventStore
             _stream.Write(_buffer, 0, _buffer.Length);
 
             Interlocked.Exchange(ref _lastFlushed, last);
-
-            // FlushFileBuffers(_file.SafeMemoryMappedFileHandle.DangerousGetHandle());
         }
 
         /// <summary>
         /// Reads the current checkpoint.
         /// </summary>
         /// <returns>The current checkpoint.</returns>
-        public ulong Read()
+        public long Read()
         {
             return _cached ? Interlocked.Read(ref _lastFlushed) : ReadCurrent();
         }
 
-        private ulong ReadCurrent()
+        private long ReadCurrent()
         {
             _stream.Seek(0, SeekOrigin.Begin);
-            return _reader.ReadUInt64();
+            return _reader.ReadInt64();
         }
 
         private static class Filenative
