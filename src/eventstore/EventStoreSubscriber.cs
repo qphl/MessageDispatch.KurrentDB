@@ -123,8 +123,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             ILogger logger,
             ulong liveEventThreshold = 10)
             => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold);
-
-#pragma warning disable CS0618 // Type or member is obsolete
+        
         /// <summary>
         /// Creates an eventstore catchup subscription using a checkpoint file.
         /// </summary>
@@ -312,7 +311,12 @@ namespace CorshamScience.MessageDispatch.EventStore
                 {
                     return;
                 }
-
+                
+                if (resolvedEvent.OriginalEventNumber.ToInt64() > long.MaxValue)
+                {
+                    _logger.LogError("Event number is too large to be checkpointed. Event number: {EventNumber}", resolvedEvent.OriginalEventNumber);
+                    return;
+                }
                 _checkpoint.Write(resolvedEvent.OriginalEventNumber.ToInt64());
                 _checkpoint.Flush();
             }
