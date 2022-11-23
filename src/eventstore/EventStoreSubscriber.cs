@@ -312,7 +312,7 @@ namespace CorshamScience.MessageDispatch.EventStore
                     return;
                 }
 
-                if (resolvedEvent.OriginalEventNumber.ToInt64() > long.MaxValue)
+                if (resolvedEvent.OriginalEventNumber.ToUInt64() > long.MaxValue)
                 {
                     _logger.LogError("Event number is too large to be checkpointed. Event number: {EventNumber}", resolvedEvent.OriginalEventNumber);
                     return;
