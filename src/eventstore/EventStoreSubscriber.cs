@@ -26,6 +26,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         private string _streamName;
         private bool _liveOnly;
         private bool _isSubscribed;
+        private bool _subscribeToAll;
         private ulong? _lastProcessedEventNumber;
         private int _eventsProcessed;
         private ulong _liveEventThreshold;
@@ -145,7 +146,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             => new EventStoreSubscriber(eventStoreClient, dispatcher, logger, streamName, checkpointFilePath, liveEventThreshold);
 
         /// <summary>
-        /// Creates an ecventstore catchup subscription from a position.
+        /// Creates an eventstore catchup subscription from a position.
         /// </summary>
         /// <param name="eventStoreClient">Eventstore connection.</param>
         /// <param name="dispatcher">Dispatcher.</param>
@@ -163,7 +164,30 @@ namespace CorshamScience.MessageDispatch.EventStore
             ulong? startingPosition,
             ulong liveEventThreshold = 10)
             => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, startingPosition, liveEventThreshold);
-#pragma warning restore CS0618 // Type or member is obsolete
+
+        /// <summary>
+        /// Creates an eventstore catchup subscription that is subscribed to all.
+        /// </summary>
+        /// <param name="eventStoreClient">Eventstore connection.</param>
+        /// <param name="dispatcher">Dispatcher.</param>
+        /// <param name="logger">Logger.</param>
+        /// <param name="startingPosition">Starting Position.</param>
+        /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
+        /// <returns>A new EventStoreSubscriber object.</returns>
+        // ReSharper disable once UnusedMember.Global
+        public static EventStoreSubscriber CreateCatchupSubscriptionSubscribedToAll(
+            EventStoreClient eventStoreClient,
+            IDispatcher<ResolvedEvent> dispatcher,
+            ILogger logger,
+            ulong? startingPosition,
+            ulong liveEventThreshold = 10)
+            => new EventStoreSubscriber(
+                eventStoreClient,
+                dispatcher,
+                null,
+                logger,
+                startingPosition,
+                liveEventThreshold);
 
         /// <summary>
         /// Start the subscriber.
@@ -260,6 +284,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             _streamName = streamName;
             _eventStoreClient = connection;
             _liveOnly = liveOnly;
+            _subscribeToAll = string.IsNullOrWhiteSpace(streamName);
             _liveEventThreshold = liveEventThreshold;
             _lastStreamPosition = StreamPosition.End;
             _lastStreamPositionTimestamp = DateTime.MinValue;
