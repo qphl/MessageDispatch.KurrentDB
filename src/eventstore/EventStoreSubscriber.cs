@@ -166,7 +166,28 @@ namespace CorshamScience.MessageDispatch.EventStore
             => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, startingPosition, liveEventThreshold);
 
         /// <summary>
-        /// Creates an eventstore catchup subscription that is subscribed to all.
+        /// Creates an eventstore catchup subscription that is subscribed to all from the start.
+        /// </summary>
+        /// <param name="eventStoreClient">Eventstore connection.</param>
+        /// <param name="dispatcher">Dispatcher.</param>
+        /// <param name="logger">Logger.</param>
+        /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
+        /// <returns>A new EventStoreSubscriber object.</returns>
+        // ReSharper disable once UnusedMember.Global
+        public static EventStoreSubscriber CreateCatchupSubscriptionSubscribedToAllFromPosition(
+            EventStoreClient eventStoreClient,
+            IDispatcher<ResolvedEvent> dispatcher,
+            ILogger logger,
+            ulong liveEventThreshold = 10)
+            => new EventStoreSubscriber(
+                eventStoreClient,
+                dispatcher,
+                null,
+                logger,
+                liveEventThreshold);
+
+        /// <summary>
+        /// Creates an eventstore catchup subscription that is subscribed to all from a position.
         /// </summary>
         /// <param name="eventStoreClient">Eventstore connection.</param>
         /// <param name="dispatcher">Dispatcher.</param>
@@ -175,7 +196,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
-        public static EventStoreSubscriber CreateCatchupSubscriptionSubscribedToAll(
+        public static EventStoreSubscriber CreateCatchupSubscriptionSubscribedToAllFromPosition(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             ILogger logger,
@@ -210,6 +231,8 @@ namespace CorshamScience.MessageDispatch.EventStore
                     // As this is a background process then we don't need to have async context here.
                     using (NoSynchronizationContextScope.Enter())
                     {
+                        var filterOptions = new SubscriptionFilterOptions(EventTypeFilter.ExcludeSystemEvents());
+
                         switch (_liveOnly)
                         {
                             case true when !_subscribeToAll:
@@ -237,16 +260,26 @@ namespace CorshamScience.MessageDispatch.EventStore
 
                             case true when _subscribeToAll:
                                 _subscription = _eventStoreClient.SubscribeToAllAsync(
-                                        FromAll.Start,
+                                        FromAll.End,
                                         async (_, e, _) => await EventAppeared(e),
                                         resolveLinkTos: true,
                                         subscriptionDropped: SubscriptionDropped,
-                                        filterOptions: new SubscriptionFilterOptions(
-                                            EventTypeFilter.ExcludeSystemEvents()))
+                                        filterOptions: filterOptions)
                                     .Result;
                                 break;
                             case false when _subscribeToAll:
-                                // TODO
+                                // TODO: Check this
+                                var fromAll = _startingPosition.HasValue ?
+                                    FromAll.After(new Position(_startingPosition.Value, _startingPosition.Value)) :
+                                    FromAll.Start;
+
+                                _subscription = _eventStoreClient.SubscribeToAllAsync(
+                                        fromAll,
+                                        async (_, e, _) => await EventAppeared(e),
+                                        resolveLinkTos: true,
+                                        subscriptionDropped: SubscriptionDropped,
+                                        filterOptions: filterOptions)
+                                    .Result;
                                 break;
                         }
                     }
