@@ -237,10 +237,13 @@ namespace CorshamScience.MessageDispatch.EventStore
 
                             case true when _subscribeToAll:
                                 _subscription = _eventStoreClient.SubscribeToAllAsync(
-                                    FromAll.Start,
-                                    async (_, e, _) => await EventAppeared(e),
-                                    resolveLinkTos: true,
-                                    subscriptionDropped: SubscriptionDropped).Result;
+                                        FromAll.Start,
+                                        async (_, e, _) => await EventAppeared(e),
+                                        resolveLinkTos: true,
+                                        subscriptionDropped: SubscriptionDropped,
+                                        filterOptions: new SubscriptionFilterOptions(
+                                            EventTypeFilter.ExcludeSystemEvents()))
+                                    .Result;
                                 break;
                             case false when _subscribeToAll:
                                 // TODO
