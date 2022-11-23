@@ -192,6 +192,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <summary>
         /// Start the subscriber.
         /// </summary>
+        // ReSharper disable once MemberCanBePrivate.Global
         public void Start()
         {
             while (true)
@@ -209,27 +210,41 @@ namespace CorshamScience.MessageDispatch.EventStore
                     // As this is a background process then we don't need to have async context here.
                     using (NoSynchronizationContextScope.Enter())
                     {
-                        if (_liveOnly)
+                        switch (_liveOnly)
                         {
-                            _subscription = _eventStoreClient.SubscribeToStreamAsync(
-                                _streamName,
-                                FromStream.End,
-                                (s, e, t) => EventAppeared(e),
-                                resolveLinkTos: true,
-                                subscriptionDropped: SubscriptionDropped).Result;
-                        }
-                        else
-                        {
-                            var fromStream = _startingPosition.HasValue ?
-                                FromStream.After(new StreamPosition(_startingPosition.Value)) :
-                                FromStream.Start;
+                            case true when !_subscribeToAll:
+                                _subscription = _eventStoreClient.SubscribeToStreamAsync(
+                                    _streamName,
+                                    FromStream.End,
+                                    (s, e, t) => EventAppeared(e),
+                                    resolveLinkTos: true,
+                                    subscriptionDropped: SubscriptionDropped).Result;
+                                break;
+                            case false when !_subscribeToAll:
+                            {
+                                var fromStream = _startingPosition.HasValue ?
+                                    FromStream.After(new StreamPosition(_startingPosition.Value)) :
+                                    FromStream.Start;
 
-                            _subscription = _eventStoreClient.SubscribeToStreamAsync(
-                                   _streamName,
-                                   fromStream,
-                                   (s, e, t) => EventAppeared(e),
-                                   resolveLinkTos: true,
-                                   subscriptionDropped: SubscriptionDropped).Result;
+                                _subscription = _eventStoreClient.SubscribeToStreamAsync(
+                                    _streamName,
+                                    fromStream,
+                                    (_, e, _) => EventAppeared(e),
+                                    resolveLinkTos: true,
+                                    subscriptionDropped: SubscriptionDropped).Result;
+                                break;
+                            }
+
+                            case true when _subscribeToAll:
+                                _subscription = _eventStoreClient.SubscribeToAllAsync(
+                                    FromAll.Start,
+                                    async (_, e, _) => await EventAppeared(e),
+                                    resolveLinkTos: true,
+                                    subscriptionDropped: SubscriptionDropped).Result;
+                                break;
+                            case false when _subscribeToAll:
+                                // TODO
+                                break;
                         }
                     }
 
