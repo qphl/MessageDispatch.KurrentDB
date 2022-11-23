@@ -174,7 +174,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
-        public static EventStoreSubscriber CreateCatchupSubscriptionSubscribedToAllFromPosition(
+        public static EventStoreSubscriber CreateCatchupSubscriptionSubscribedToAll(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             ILogger logger,
