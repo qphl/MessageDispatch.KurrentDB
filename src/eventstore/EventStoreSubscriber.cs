@@ -232,6 +232,13 @@ namespace CorshamScience.MessageDispatch.EventStore
                     using (NoSynchronizationContextScope.Enter())
                     {
                         var filterOptions = new SubscriptionFilterOptions(EventTypeFilter.ExcludeSystemEvents());
+                        const bool resolveLinkTos = true;
+
+                        Task Appeared(
+                            StreamSubscription streamSubscription,
+                            ResolvedEvent e,
+                            CancellationToken cancellationToken) =>
+                            EventAppeared(e);
 
                         switch (_liveOnly)
                         {
@@ -239,9 +246,9 @@ namespace CorshamScience.MessageDispatch.EventStore
                                 _subscription = _eventStoreClient.SubscribeToStreamAsync(
                                     _streamName,
                                     FromStream.End,
-                                    (s, e, t) => EventAppeared(e),
-                                    resolveLinkTos: true,
-                                    subscriptionDropped: SubscriptionDropped).Result;
+                                    Appeared,
+                                    resolveLinkTos,
+                                    SubscriptionDropped).Result;
                                 break;
                             case false when !_subscribeToAll:
                             {
@@ -252,19 +259,19 @@ namespace CorshamScience.MessageDispatch.EventStore
                                 _subscription = _eventStoreClient.SubscribeToStreamAsync(
                                     _streamName,
                                     fromStream,
-                                    (_, e, _) => EventAppeared(e),
-                                    resolveLinkTos: true,
-                                    subscriptionDropped: SubscriptionDropped).Result;
+                                    Appeared,
+                                    resolveLinkTos,
+                                    SubscriptionDropped).Result;
                                 break;
                             }
 
                             case true when _subscribeToAll:
                                 _subscription = _eventStoreClient.SubscribeToAllAsync(
                                         FromAll.End,
-                                        async (_, e, _) => await EventAppeared(e),
-                                        resolveLinkTos: true,
-                                        subscriptionDropped: SubscriptionDropped,
-                                        filterOptions: filterOptions)
+                                        Appeared,
+                                        resolveLinkTos,
+                                        SubscriptionDropped,
+                                        filterOptions)
                                     .Result;
                                 break;
                             case false when _subscribeToAll:
@@ -275,10 +282,10 @@ namespace CorshamScience.MessageDispatch.EventStore
 
                                 _subscription = _eventStoreClient.SubscribeToAllAsync(
                                         fromAll,
-                                        async (_, e, _) => await EventAppeared(e),
-                                        resolveLinkTos: true,
-                                        subscriptionDropped: SubscriptionDropped,
-                                        filterOptions: filterOptions)
+                                        Appeared,
+                                        resolveLinkTos,
+                                        SubscriptionDropped,
+                                        filterOptions)
                                     .Result;
                                 break;
                         }
