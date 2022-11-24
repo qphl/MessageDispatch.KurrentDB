@@ -453,7 +453,7 @@ namespace CorshamScience.MessageDispatch.EventStore
                 }
                 else
                 {
-                    _lastStreamPosition = LastNonSystemFromAll().Result;
+                    _lastStreamPosition = (ulong)CountOfNonSystemFromAll().Result;
                 }
 
                 _lastStreamPositionTimestamp = DateTime.UtcNow;
@@ -462,20 +462,10 @@ namespace CorshamScience.MessageDispatch.EventStore
             return _lastStreamPosition;
         }
 
-        private async Task<ulong> LastNonSystemFromAll()
-        {
-            var events = _eventStoreClient.ReadAllAsync(Direction.Backwards, Position.End);
-
-            await foreach (var e in events)
-            {
-                if (!e.Event.EventType.StartsWith("$"))
-                {
-                    return e.OriginalEventNumber.ToUInt64();
-                }
-            }
-
-            return 0;
-        }
+        private async Task<int> CountOfNonSystemFromAll() =>
+            await _eventStoreClient
+                .ReadAllAsync(Direction.Backwards, Position.End)
+                .CountAwaitAsync(e => new ValueTask<bool>(!e.Event.EventType.StartsWith("$")));
 
         private void KillSubscription()
         {
