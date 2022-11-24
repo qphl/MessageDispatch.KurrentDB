@@ -17,6 +17,7 @@ namespace CorshamScience.MessageDispatch.EventStore
     /// </summary>
     public class EventStoreSubscriber
     {
+        private const string AllStreamName = "$all";
         private readonly WriteThroughFileCheckpoint _checkpoint;
         private readonly object _subscriptionLock = new object();
 
@@ -182,7 +183,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             => new EventStoreSubscriber(
                 eventStoreClient,
                 dispatcher,
-                null,
+                AllStreamName,
                 logger,
                 liveEventThreshold);
 
@@ -205,10 +206,34 @@ namespace CorshamScience.MessageDispatch.EventStore
             => new EventStoreSubscriber(
                 eventStoreClient,
                 dispatcher,
-                null,
+                AllStreamName,
                 logger,
                 startingPosition,
                 liveEventThreshold);
+
+        /// <summary>
+        /// Creates an eventstore catchup subscription subscribed to all using a checkpoint file.
+        /// </summary>
+        /// <param name="eventStoreClient">Eventstore connection.</param>
+        /// <param name="dispatcher">Dispatcher.</param>
+        /// <param name="logger">Logger.</param>
+        /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
+        /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
+        /// <returns>A new EventStoreSubscriber object.</returns>
+        // ReSharper disable once UnusedMember.Global
+        public static EventStoreSubscriber CreateCatchupSubscriptionSubscribedToAllUsingCheckpoint(
+            EventStoreClient eventStoreClient,
+            IDispatcher<ResolvedEvent> dispatcher,
+            ILogger logger,
+            string checkpointFilePath,
+            ulong liveEventThreshold = 10)
+            => new EventStoreSubscriber(
+                    eventStoreClient,
+                    dispatcher,
+                    logger,
+                    AllStreamName,
+                    checkpointFilePath,
+                    liveEventThreshold);
 
         /// <summary>
         /// Start the subscriber.
@@ -342,7 +367,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             _streamName = streamName;
             _eventStoreClient = connection;
             _liveOnly = liveOnly;
-            _subscribeToAll = string.IsNullOrWhiteSpace(streamName);
+            _subscribeToAll = streamName == AllStreamName;
             _liveEventThreshold = liveEventThreshold;
             _lastStreamPosition = StreamPosition.End;
             _lastStreamPositionTimestamp = DateTime.MinValue;
@@ -400,6 +425,7 @@ namespace CorshamScience.MessageDispatch.EventStore
                     _logger.LogError("Event number is too large to be checkpointed. Event number: {EventNumber}", resolvedEvent.OriginalEventNumber);
                     return;
                 }
+
                 _checkpoint.Write(resolvedEvent.OriginalEventNumber.ToInt64());
                 _checkpoint.Flush();
             }
@@ -415,17 +441,48 @@ namespace CorshamScience.MessageDispatch.EventStore
 
             if (_isSubscribed && streamPositionIsStale)
             {
-                _lastStreamPosition = _eventStoreClient.ReadStreamAsync(
-                    Direction.Backwards,
-                    _streamName,
-                    StreamPosition.End,
-                    maxCount: 1,
-                    resolveLinkTos: false).LastAsync().Result.OriginalEventNumber.ToUInt64();
+                if (!_subscribeToAll)
+                {
+                    _lastStreamPosition = _eventStoreClient.ReadStreamAsync(
+                        Direction.Backwards,
+                        _streamName,
+                        StreamPosition.End,
+                        maxCount: 1,
+                        resolveLinkTos: false)
+                        .LastAsync()
+                        .Result.OriginalEventNumber.ToUInt64();
+                }
+                else
+                {
+                    _lastStreamPosition = _eventStoreClient.ReadAllAsync(
+                            Direction.Backwards,
+                            Position.End,
+                            maxCount: 1)
+                        .LastAsync()
+                        .Result.OriginalEventNumber.ToUInt64();
+
+                    _lastStreamPosition = LastNonSystemFromAll().Result;
+                }
 
                 _lastStreamPositionTimestamp = DateTime.UtcNow;
             }
 
             return _lastStreamPosition;
+        }
+
+        private async Task<ulong> LastNonSystemFromAll()
+        {
+            var events = _eventStoreClient.ReadAllAsync(Direction.Backwards, Position.End);
+
+            await foreach (var e in events)
+            {
+                if (!e.Event.EventType.StartsWith("$"))
+                {
+                    return e.OriginalEventNumber.ToUInt64();
+                }
+            }
+
+            return 0;
         }
 
         private void KillSubscription()
