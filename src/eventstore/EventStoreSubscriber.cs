@@ -453,13 +453,6 @@ namespace CorshamScience.MessageDispatch.EventStore
                 }
                 else
                 {
-                    _lastStreamPosition = _eventStoreClient.ReadAllAsync(
-                            Direction.Backwards,
-                            Position.End,
-                            maxCount: 1)
-                        .LastAsync()
-                        .Result.OriginalEventNumber.ToUInt64();
-
                     _lastStreamPosition = LastNonSystemFromAll().Result;
                 }
 
