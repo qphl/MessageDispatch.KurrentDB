@@ -300,7 +300,6 @@ namespace CorshamScience.MessageDispatch.EventStore
                                     .Result;
                                 break;
                             case false when _subscribeToAll:
-                                // TODO: Check this
                                 var fromAll = _startingPosition.HasValue ?
                                     FromAll.After(new Position(_startingPosition.Value, _startingPosition.Value)) :
                                     FromAll.Start;
