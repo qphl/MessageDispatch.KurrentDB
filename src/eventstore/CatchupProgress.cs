@@ -12,47 +12,62 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <summary>
         /// Initializes a new instance of the <see cref="CatchupProgress"/> class.
         /// </summary>
-        /// <param name="eventsProcessed">The number of events which have been processed.</param>
-        /// <param name="startPosition">The catchup process' starting position in the stream.</param>
-        /// <param name="streamName">The name of the stream which is being caught up on.</param>
-        /// <param name="totalEvents">The total number of events in the stream which is being caught up on.</param>
-        public CatchupProgress(int eventsProcessed, ulong startPosition, string streamName, ulong totalEvents)
+        /// <param name="lastProcessedEventPosition">The last processed event position.</param>
+        /// <param name="streamName">The name of the stream which is being caught up on (or $all if this is subscribed to all).</param>
+        /// <param name="endOfStreamPosition">The end of the stream position (stream position for stream subscription of commit position for all subscription).</param>
+        /// <param name="startPosition">The starting position (Event number for stream subscription or commit position for all subscription).</param>
+        /// <param name="subscribeToAll">Whether the subscriber is subscribed to all.</param>
+        public CatchupProgress(
+            ulong lastProcessedEventPosition,
+            string streamName,
+            ulong endOfStreamPosition,
+            ulong startPosition,
+            bool subscribeToAll)
         {
-            EventsProcessed = eventsProcessed;
+            IsAllSubscription = subscribeToAll;
+            LastProcessedEventPosition = lastProcessedEventPosition;
             StartPosition = startPosition;
             StreamName = streamName;
-            TotalEvents = totalEvents;
+            EndOfStreamPosition = endOfStreamPosition;
         }
 
         /// <summary>
-        /// Gets the name of the stream.
+        /// Gets a value indicating whether the subscriber is subscribed to all.
+        /// </summary>
+        public bool IsAllSubscription { get; }
+
+        /// <summary>
+        /// Gets the name of the stream ($all if this is an all subscription).
         /// </summary>
         public string StreamName { get; }
 
         /// <summary>
-        /// Gets the number of events which have been processed.
-        /// </summary>
-        public int EventsProcessed { get; }
-
-        /// <summary>
-        /// Gets the starting position in the stream.
+        /// Gets the starting position (Event number for stream subscription or commit position for all subscription).
         /// </summary>
         public ulong StartPosition { get; }
 
         /// <summary>
-        /// Gets the total number of events in the stream.
+        /// Gets the last processed event (stream position for stream subscription of commit position for all subscription).
         /// </summary>
-        public ulong TotalEvents { get; }
+        public ulong LastProcessedEventPosition { get; }
 
         /// <summary>
-        /// Gets the percentage  of events in the stream which have been processed.
+        /// Gets the end of the stream position (stream position for stream subscription of commit position for all subscription).
         /// </summary>
-        public decimal StreamPercentage => ((decimal)StartPosition + EventsProcessed) / TotalEvents * 100;
+        public ulong EndOfStreamPosition { get; }
 
         /// <summary>
-        /// Gets the percentage  of events in the stream which require catching up on, which have been processed.
+        /// Gets the percentage of events in the stream which have been processed (either by number of events or position in the transaction log).
         /// </summary>
-        public decimal CatchupPercentage => EventsProcessed == 0 ? 0.0m : (decimal)EventsProcessed / (TotalEvents - StartPosition) * 100;
+        public decimal OverallPercentage => (decimal)LastProcessedEventPosition / EndOfStreamPosition * 100;
+
+        /// <summary>
+        /// Gets the percentage of events in the stream which require catching up on, which have been processed (either by number of events or position in the transaction log).
+        /// </summary>
+        public decimal CatchupPercentage =>
+            LastProcessedEventPosition - StartPosition == 0
+                ? 0.0m
+                : ((decimal)LastProcessedEventPosition - StartPosition) / (EndOfStreamPosition - StartPosition) * 100;
 
         /// <summary>
         /// Generates a string describing the state of the stream catch up progress.
@@ -61,7 +76,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         public override string ToString()
         {
             return
-                $"[{StreamName}] Stream Pos: {StreamPercentage:0.#}% ({(ulong)EventsProcessed + StartPosition}/{TotalEvents}), Caught up: {CatchupPercentage:0.#}% ({EventsProcessed}/{TotalEvents - StartPosition})";
+                $"[{StreamName}] Overall Pos: {OverallPercentage:0.#}% ({LastProcessedEventPosition}/{EndOfStreamPosition}), Caught up: {CatchupPercentage:0.#}% ({LastProcessedEventPosition - StartPosition}/{EndOfStreamPosition - StartPosition})";
         }
     }
 }

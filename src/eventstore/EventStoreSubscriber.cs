@@ -18,7 +18,7 @@ namespace CorshamScience.MessageDispatch.EventStore
     public class EventStoreSubscriber
     {
         private const string AllStreamName = "$all";
-        private readonly StreamCheckpoint _checkpoint;
+        private readonly WriteThroughFileCheckpoint _checkpoint;
         private readonly object _subscriptionLock = new object();
 
         private EventStoreClient _eventStoreClient;
@@ -28,10 +28,10 @@ namespace CorshamScience.MessageDispatch.EventStore
         private bool _liveOnly;
         private bool _isSubscribed;
         private bool _subscribeToAll;
-        private ulong? _lastProcessedEventNumber;
-        private int _eventsProcessed;
+        private ulong? _lastProcessedEventPosition;
+        private ulong _actualEndOfStreamPosition;
         private ulong _liveEventThreshold;
-        private ulong _lastStreamPosition;
+        private ulong _liveThresholdPosition;
         private DateTime _lastStreamPositionTimestamp;
 
         private IDispatcher<ResolvedEvent> _dispatcher;
@@ -54,7 +54,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             string checkpointFilePath,
             ulong liveEventThreshold)
         {
-            _checkpoint = new StreamCheckpoint(checkpointFilePath, "lastProcessedPosition", false, -1);
+            _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, "lastProcessedPosition", false, -1);
             var initialCheckpointPosition = _checkpoint.Read();
             ulong? startingPosition = null;
 
@@ -78,12 +78,18 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// Gets a new catchup progress object.
         /// </summary>
         // ReSharper disable once UnusedMember.Global
-        public CatchupProgress CatchUpPercentage
+        public CatchupProgress CatchupProgress
         {
             get
             {
-                var lastStreamPosition = GetLastStreamPosition();
-                return new CatchupProgress(_eventsProcessed, _startingPosition ?? 0, _streamName, lastStreamPosition);
+                var lastStreamPosition = _subscribeToAll ? GetLastAllPosition() : GetLastStreamPosition();
+
+                return new CatchupProgress(
+                    _lastProcessedEventPosition ?? 0,
+                    _streamName,
+                    lastStreamPosition.Result.actualEndOfStreamPosition,
+                    _startingPosition ?? 0,
+                    _subscribeToAll);
             }
         }
 
@@ -95,16 +101,9 @@ namespace CorshamScience.MessageDispatch.EventStore
         {
             get
             {
-                if (!_isSubscribed)
-                {
-                    return false;
-                }
+                var lastStreamPosition = _subscribeToAll ? GetLastAllPosition() : GetLastStreamPosition();
 
-                var catchUpProgress = CatchUpPercentage;
-                var currentPosition = catchUpProgress.StartPosition + (ulong)catchUpProgress.EventsProcessed;
-                var currentPositionFromEnd = catchUpProgress.TotalEvents - currentPosition;
-
-                return currentPositionFromEnd < _liveEventThreshold;
+                return _isSubscribed && _lastProcessedEventPosition >= lastStreamPosition.Result.liveThresholdPosition;
             }
         }
 
@@ -256,7 +255,9 @@ namespace CorshamScience.MessageDispatch.EventStore
                     // As this is a background process then we don't need to have async context here.
                     using (NoSynchronizationContextScope.Enter())
                     {
-                        var filterOptions = new SubscriptionFilterOptions(EventTypeFilter.ExcludeSystemEvents());
+                        var filterOptions = new SubscriptionFilterOptions(
+                            EventTypeFilter.ExcludeSystemEvents(),
+                            checkpointReached: CheckpointReached);
                         const bool resolveLinkTos = true;
 
                         Task Appeared(
@@ -359,16 +360,15 @@ namespace CorshamScience.MessageDispatch.EventStore
             bool liveOnly = false)
         {
             _logger = logger;
-            _eventsProcessed = 0;
             _startingPosition = startingPosition;
-            _lastProcessedEventNumber = startingPosition;
+            _lastProcessedEventPosition = startingPosition;
             _dispatcher = dispatcher;
             _streamName = streamName;
             _eventStoreClient = connection;
             _liveOnly = liveOnly;
             _subscribeToAll = streamName == AllStreamName;
             _liveEventThreshold = liveEventThreshold;
-            _lastStreamPosition = StreamPosition.End;
+            _liveThresholdPosition = StreamPosition.End;
             _lastStreamPositionTimestamp = DateTime.MinValue;
         }
 
@@ -390,30 +390,23 @@ namespace CorshamScience.MessageDispatch.EventStore
             }
 
             _isSubscribed = false;
-            _startingPosition = _lastProcessedEventNumber;
+            _startingPosition = _lastProcessedEventPosition;
             Start();
         }
 
         private Task EventAppeared(ResolvedEvent resolvedEvent)
         {
-            var commitPosition = resolvedEvent.Event.Position.CommitPosition;
-            var preparePosition = resolvedEvent.Event.Position.PreparePosition;
-
-            if (commitPosition != preparePosition)
-            {
-                throw new Exception(
-                    $"Commit position ({commitPosition}) was not the same as prepare position ({preparePosition})");
-            }
-
             ProcessEvent(resolvedEvent);
-            _lastProcessedEventNumber = resolvedEvent.OriginalEventNumber.ToUInt64();
+
+            _lastProcessedEventPosition = _subscribeToAll
+                ? resolvedEvent.OriginalEventNumber.ToUInt64()
+                : resolvedEvent.OriginalEvent.Position.CommitPosition;
 
             return Task.CompletedTask;
         }
 
         private void ProcessEvent(ResolvedEvent resolvedEvent)
         {
-            _eventsProcessed++;
             if (resolvedEvent.Event == null || resolvedEvent.Event.EventType.StartsWith("$"))
             {
                 return;
@@ -428,14 +421,11 @@ namespace CorshamScience.MessageDispatch.EventStore
                     return;
                 }
 
-                if (resolvedEvent.OriginalEventNumber.ToUInt64() > long.MaxValue)
-                {
-                    _logger.LogError("Event number is too large to be checkpointed. Event number: {EventNumber}", resolvedEvent.OriginalEventNumber);
-                    return;
-                }
+                var checkpointNumber = _subscribeToAll
+                    ? resolvedEvent.OriginalEvent.Position.CommitPosition
+                    : resolvedEvent.OriginalEventNumber.ToUInt64();
 
-                _checkpoint.Write(resolvedEvent.OriginalEventNumber.ToInt64());
-                _checkpoint.Flush();
+                WriteCheckpoint(checkpointNumber);
             }
             catch (Exception ex)
             {
@@ -443,38 +433,61 @@ namespace CorshamScience.MessageDispatch.EventStore
             }
         }
 
-        private ulong GetLastStreamPosition()
+        private void WriteCheckpoint(ulong checkpointNumber)
+        {
+            if (checkpointNumber > long.MaxValue)
+            {
+                _logger.LogError(
+                    "Value is too large to be checkpointed. Checkpoint number {CheckpointNumber}",
+                    checkpointNumber);
+                return;
+            }
+
+            _checkpoint.Write((long)checkpointNumber);
+            _checkpoint.Flush();
+        }
+
+        private async Task<(ulong liveThresholdPosition, ulong actualEndOfStreamPosition)> GetLastStreamPosition()
         {
             var streamPositionIsStale = (DateTime.UtcNow - _lastStreamPositionTimestamp) > TimeSpan.FromSeconds(10);
 
             if (_isSubscribed && streamPositionIsStale)
             {
-                if (!_subscribeToAll)
-                {
-                    _lastStreamPosition = _eventStoreClient.ReadStreamAsync(
+                var eventsWithinThreshold = await _eventStoreClient.ReadStreamAsync(
                         Direction.Backwards,
                         _streamName,
                         StreamPosition.End,
-                        maxCount: 1,
+                        maxCount: (long)_liveEventThreshold,
                         resolveLinkTos: false)
-                        .LastAsync()
-                        .Result.OriginalEventNumber.ToUInt64();
-                }
-                else
-                {
-                    _lastStreamPosition = (ulong)CountOfNonSystemFromAll().Result;
-                }
+                    .ToListAsync();
 
+                _liveThresholdPosition = eventsWithinThreshold.Last().OriginalEventNumber.ToUInt64();
+                _actualEndOfStreamPosition = eventsWithinThreshold.First().OriginalEventNumber.ToUInt64();
                 _lastStreamPositionTimestamp = DateTime.UtcNow;
             }
 
-            return _lastStreamPosition;
+            return (_liveThresholdPosition, _actualEndOfStreamPosition);
         }
 
-        private async Task<int> CountOfNonSystemFromAll() =>
-            await _eventStoreClient
-                .ReadAllAsync(Direction.Backwards, Position.End)
-                .CountAwaitAsync(e => new ValueTask<bool>(!e.Event.EventType.StartsWith("$")));
+        private async Task<(ulong liveThresholdPosition, ulong actualEndOfStreamPosition)> GetLastAllPosition()
+        {
+            var streamPositionIsStale = (DateTime.UtcNow - _lastStreamPositionTimestamp) > TimeSpan.FromSeconds(10);
+
+            if (_isSubscribed && streamPositionIsStale)
+            {
+                var eventsWithinThreshold = await _eventStoreClient.ReadAllAsync(
+                        Direction.Backwards,
+                        Position.End,
+                        (long)_liveEventThreshold)
+                    .ToListAsync();
+
+                _liveThresholdPosition = eventsWithinThreshold.Last().OriginalEvent.Position.CommitPosition;
+                _actualEndOfStreamPosition = eventsWithinThreshold.First().OriginalEvent.Position.CommitPosition;
+                _lastStreamPositionTimestamp = DateTime.UtcNow;
+            }
+
+            return (_liveThresholdPosition, _actualEndOfStreamPosition);
+        }
 
         private void KillSubscription()
         {
@@ -485,6 +498,17 @@ namespace CorshamScience.MessageDispatch.EventStore
             }
 
             _isSubscribed = false;
+        }
+
+        private Task CheckpointReached(
+            StreamSubscription streamSubscription,
+            Position position,
+            CancellationToken cancellationToken)
+        {
+            _lastProcessedEventPosition = position.CommitPosition;
+            WriteCheckpoint((ulong)_lastProcessedEventPosition);
+
+            return Task.CompletedTask;
         }
     }
 }
