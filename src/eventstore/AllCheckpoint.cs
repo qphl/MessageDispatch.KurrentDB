@@ -7,14 +7,16 @@ namespace CorshamScience.MessageDispatch.EventStore
     using System;
     using System.IO;
     using System.Runtime.InteropServices;
-    using System.Threading;
+    using global::EventStore.Client;
     using Microsoft.Win32.SafeHandles;
 
     /// <summary>
     /// Writes a checkpoint to a file pulled from event store.
     /// </summary>
-    internal class WriteThroughFileCheckpoint
+    internal class AllCheckpoint
     {
+        private readonly object _lastLock = new ();
+
         private readonly FileStream _stream;
         private readonly bool _cached;
         private readonly BinaryWriter _writer;
@@ -22,17 +24,17 @@ namespace CorshamScience.MessageDispatch.EventStore
         private readonly MemoryStream _memStream;
         private readonly byte[] _buffer;
 
-        private long _last;
-        private long _lastFlushed;
+        private Position _last;
+        private Position _lastFlushed;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="WriteThroughFileCheckpoint"/> class.
+        /// Initializes a new instance of the <see cref="AllCheckpoint"/> class.
         /// </summary>
         /// <param name="filename">The file to write a checkpoint to.</param>
         /// <param name="name">The name of the checkpoint to write.</param>
         /// <param name="cached">Indicates if the checkpoint has been cached.</param>
         /// <param name="initValue">The initial value to write.</param>
-        public WriteThroughFileCheckpoint(string filename, string name, bool cached, long initValue = 0)
+        public AllCheckpoint(string filename, string name, bool cached, Position initValue)
         {
             Name = name;
             _cached = cached;
@@ -72,9 +74,12 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// Writes the checkpoint.
         /// </summary>
         /// <param name="checkpoint">Represents the new checkpoint.</param>
-        public void Write(long checkpoint)
+        public void Write(Position checkpoint)
         {
-            Interlocked.Exchange(ref _last, checkpoint);
+            lock (_lastLock)
+            {
+                _last = checkpoint;
+            }
         }
 
         /// <summary>
@@ -84,26 +89,37 @@ namespace CorshamScience.MessageDispatch.EventStore
         {
             _memStream.Seek(0, SeekOrigin.Begin);
             _stream.Seek(0, SeekOrigin.Begin);
-            var last = Interlocked.Read(ref _last);
-            _writer.Write(last);
-            _stream.Write(_buffer, 0, _buffer.Length);
 
-            Interlocked.Exchange(ref _lastFlushed, last);
+            lock (_lastLock)
+            {
+                _writer.Write(_last.CommitPosition);
+                _writer.Write(_last.PreparePosition);
+                _stream.Write(_buffer, 0, _buffer.Length);
+
+                _lastFlushed = _last;
+            }
         }
 
         /// <summary>
         /// Reads the current checkpoint.
         /// </summary>
         /// <returns>The current checkpoint.</returns>
-        public long Read()
+        public Position Read()
         {
-            return _cached ? Interlocked.Read(ref _lastFlushed) : ReadCurrent();
+            lock (_lastLock)
+            {
+                return _cached ? _lastFlushed : ReadCurrent();
+            }
         }
 
-        private long ReadCurrent()
+        private Position ReadCurrent()
         {
             _stream.Seek(0, SeekOrigin.Begin);
-            return _reader.ReadInt64();
+
+            var commitPosition = _reader.ReadUInt64();
+            var preparePosition = _reader.ReadUInt64();
+
+            return new Position(commitPosition, preparePosition);
         }
 
         private static class Filenative

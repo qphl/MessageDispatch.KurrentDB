@@ -18,7 +18,7 @@ namespace CorshamScience.MessageDispatch.EventStore
     public class EventStoreSubscriber
     {
         private const string AllStreamName = "$all";
-        private readonly WriteThroughFileCheckpoint _checkpoint;
+        private readonly StreamCheckpoint _checkpoint;
         private readonly object _subscriptionLock = new object();
 
         private EventStoreClient _eventStoreClient;
@@ -54,7 +54,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             string checkpointFilePath,
             ulong liveEventThreshold)
         {
-            _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, "lastProcessedPosition", false, -1);
+            _checkpoint = new StreamCheckpoint(checkpointFilePath, "lastProcessedPosition", false, -1);
             var initialCheckpointPosition = _checkpoint.Read();
             ulong? startingPosition = null;
 
@@ -396,6 +396,15 @@ namespace CorshamScience.MessageDispatch.EventStore
 
         private Task EventAppeared(ResolvedEvent resolvedEvent)
         {
+            var commitPosition = resolvedEvent.Event.Position.CommitPosition;
+            var preparePosition = resolvedEvent.Event.Position.PreparePosition;
+
+            if (commitPosition != preparePosition)
+            {
+                throw new Exception(
+                    $"Commit position ({commitPosition}) was not the same as prepare position ({preparePosition})");
+            }
+
             ProcessEvent(resolvedEvent);
             _lastProcessedEventNumber = resolvedEvent.OriginalEventNumber.ToUInt64();
 
