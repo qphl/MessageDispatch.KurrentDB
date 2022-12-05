@@ -82,7 +82,9 @@ namespace CorshamScience.MessageDispatch.EventStore
         {
             get
             {
-                var lastStreamPosition = _subscribeToAll ? GetLastAllPosition() : GetLastStreamPosition();
+                var lastStreamPosition = _subscribeToAll
+                    ? GetLastAllPosition()
+                    : GetLastStreamPosition();
 
                 return new CatchupProgress(
                     _lastProcessedEventPosition ?? 0,
@@ -101,9 +103,12 @@ namespace CorshamScience.MessageDispatch.EventStore
         {
             get
             {
-                var lastStreamPosition = _subscribeToAll ? GetLastAllPosition() : GetLastStreamPosition();
+                var lastStreamPosition = _subscribeToAll
+                    ? GetLastAllPosition()
+                    : GetLastStreamPosition();
 
-                return _isSubscribed && _lastProcessedEventPosition >= lastStreamPosition.Result.liveThresholdPosition;
+                return (_liveOnly && _lastProcessedEventPosition is null && _isSubscribed) ||
+                       _lastProcessedEventPosition >= lastStreamPosition.Result.liveThresholdPosition;
             }
         }
 
@@ -398,9 +403,16 @@ namespace CorshamScience.MessageDispatch.EventStore
         {
             ProcessEvent(resolvedEvent);
 
-            _lastProcessedEventPosition = _subscribeToAll
-                ? resolvedEvent.OriginalEventNumber.ToUInt64()
-                : resolvedEvent.OriginalEvent.Position.CommitPosition;
+            var lastProcessedEventPosition = _subscribeToAll
+                ? resolvedEvent.OriginalEvent.Position.CommitPosition
+                : resolvedEvent.OriginalEventNumber.ToUInt64();
+
+            if (_liveOnly && _lastProcessedEventPosition is null)
+            {
+                _startingPosition = lastProcessedEventPosition;
+            }
+
+            _lastProcessedEventPosition = lastProcessedEventPosition;
 
             return Task.CompletedTask;
         }
@@ -416,11 +428,6 @@ namespace CorshamScience.MessageDispatch.EventStore
             {
                 _dispatcher.Dispatch(resolvedEvent);
 
-                if (_checkpoint == null)
-                {
-                    return;
-                }
-
                 var checkpointNumber = _subscribeToAll
                     ? resolvedEvent.OriginalEvent.Position.CommitPosition
                     : resolvedEvent.OriginalEventNumber.ToUInt64();
@@ -429,12 +436,21 @@ namespace CorshamScience.MessageDispatch.EventStore
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error dispatching event from Event Store subscriber ({0}/{1})", resolvedEvent.Event.EventStreamId, resolvedEvent.Event.EventNumber);
+                _logger.LogError(
+                    ex,
+                    "Error dispatching event from Event Store subscriber ({0}/{1})",
+                    resolvedEvent.Event.EventStreamId,
+                    resolvedEvent.Event.EventNumber);
             }
         }
 
         private void WriteCheckpoint(ulong checkpointNumber)
         {
+            if (_checkpoint == null)
+            {
+                return;
+            }
+
             if (checkpointNumber > long.MaxValue)
             {
                 _logger.LogError(
@@ -478,7 +494,7 @@ namespace CorshamScience.MessageDispatch.EventStore
                 var eventsWithinThreshold = await _eventStoreClient.ReadAllAsync(
                         Direction.Backwards,
                         Position.End,
-                        (long)_liveEventThreshold)
+                        maxCount: (long)_liveEventThreshold)
                     .ToListAsync();
 
                 _liveThresholdPosition = eventsWithinThreshold.Last().OriginalEvent.Position.CommitPosition;
