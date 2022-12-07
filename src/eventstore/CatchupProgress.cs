@@ -16,7 +16,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="startPosition">The catchup process' starting position in the stream.</param>
         /// <param name="streamName">The name of the stream which is being caught up on.</param>
         /// <param name="totalEvents">The total number of events in the stream which is being caught up on.</param>
-        public CatchupProgress(int eventsProcessed, long startPosition, string streamName, long totalEvents)
+        public CatchupProgress(int eventsProcessed, ulong startPosition, string streamName, ulong totalEvents)
         {
             EventsProcessed = eventsProcessed;
             StartPosition = startPosition;
@@ -37,12 +37,12 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <summary>
         /// Gets the starting position in the stream.
         /// </summary>
-        public long StartPosition { get; }
+        public ulong StartPosition { get; }
 
         /// <summary>
         /// Gets the total number of events in the stream.
         /// </summary>
-        public long TotalEvents { get; }
+        public ulong TotalEvents { get; }
 
         /// <summary>
         /// Gets the percentage  of events in the stream which have been processed.
@@ -61,7 +61,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         public override string ToString()
         {
             return
-                $"[{StreamName}] Stream Pos: {StreamPercentage:0.#}% ({EventsProcessed + StartPosition}/{TotalEvents}), Caught up: {CatchupPercentage:0.#}% ({EventsProcessed}/{TotalEvents - StartPosition})";
+                $"[{StreamName}] Stream Pos: {StreamPercentage:0.#}% ({(ulong)EventsProcessed + StartPosition}/{TotalEvents}), Caught up: {CatchupPercentage:0.#}% ({EventsProcessed}/{TotalEvents - StartPosition})";
         }
     }
 }

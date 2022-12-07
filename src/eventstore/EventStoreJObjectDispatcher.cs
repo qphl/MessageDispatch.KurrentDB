@@ -7,7 +7,7 @@ namespace CorshamScience.MessageDispatch.EventStore
     using System;
     using System.Text;
     using CorshamScience.MessageDispatch.Core;
-    using global::EventStore.ClientAPI;
+    using global::EventStore.Client;
     using Newtonsoft.Json.Linq;
 
     /// <inheritdoc />
@@ -44,7 +44,7 @@ namespace CorshamScience.MessageDispatch.EventStore
 
             try
             {
-                deserialized = JObject.Parse(Encoding.UTF8.GetString(rawMessage.Event.Data));
+                deserialized = JObject.Parse(Encoding.UTF8.GetString(rawMessage.Event.Data.Span));
                 return true;
             }
             catch (Exception)

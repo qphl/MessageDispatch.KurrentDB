@@ -8,7 +8,7 @@ namespace CorshamScience.MessageDispatch.EventStore
     using System.Collections.Generic;
     using System.Text;
     using CorshamScience.MessageDispatch.Core;
-    using global::EventStore.ClientAPI;
+    using global::EventStore.Client;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Linq;
 
@@ -47,7 +47,7 @@ namespace CorshamScience.MessageDispatch.EventStore
 
             try
             {
-                IDictionary<string, JToken> metadata = JObject.Parse(Encoding.UTF8.GetString(rawMessage.Event.Metadata));
+                IDictionary<string, JToken> metadata = JObject.Parse(Encoding.UTF8.GetString(rawMessage.Event.Metadata.Span));
 
                 if (!metadata.ContainsKey("ClrType"))
                 {
@@ -100,7 +100,7 @@ namespace CorshamScience.MessageDispatch.EventStore
 
             try
             {
-                var jsonString = Encoding.UTF8.GetString(rawMessage.Event.Data);
+                var jsonString = Encoding.UTF8.GetString(rawMessage.Event.Data.Span);
                 deserialized = JsonConvert.DeserializeObject(jsonString, messageType, _serializerSettings);
                 return deserialized != null;
             }

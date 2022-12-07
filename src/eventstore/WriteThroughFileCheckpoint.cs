@@ -53,6 +53,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             _stream.SetLength(4096);
             _reader = new BinaryReader(_stream);
             _writer = new BinaryWriter(_memStream);
+
             if (!exists)
             {
                 Write(initValue);
@@ -88,8 +89,6 @@ namespace CorshamScience.MessageDispatch.EventStore
             _stream.Write(_buffer, 0, _buffer.Length);
 
             Interlocked.Exchange(ref _lastFlushed, last);
-
-            // FlushFileBuffers(_file.SafeMemoryMappedFileHandle.DangerousGetHandle());
         }
 
         /// <summary>
