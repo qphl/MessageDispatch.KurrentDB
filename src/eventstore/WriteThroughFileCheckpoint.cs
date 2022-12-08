@@ -1,6 +1,7 @@
 ﻿/* This file is taken from Event Store codebase
    https://github.com/EventStore/EventStore/blob/master/src/EventStore.Core/TransactionLog/Checkpoint/WriteThroughFileCheckpoint.cs
    As such we should not add a Corsham Science copyright file header */
+#pragma warning disable CA1001, CA1060, CA2101
 
 namespace CorshamScience.MessageDispatch.EventStore
 {
@@ -122,3 +123,4 @@ namespace CorshamScience.MessageDispatch.EventStore
         }
     }
 }
+#pragma warning restore CA1001, CA1060, CA2101
