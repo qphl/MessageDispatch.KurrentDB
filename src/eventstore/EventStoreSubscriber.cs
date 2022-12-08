@@ -15,7 +15,7 @@ namespace CorshamScience.MessageDispatch.EventStore
     /// <summary>
     /// Subscriber for event store.
     /// </summary>
-    public class EventStoreSubscriber
+    public class EventStoreSubscriber : IEventStoreSubscriber
     {
         private const string AllStreamName = "$all";
         private readonly WriteThroughFileCheckpoint _checkpoint;
