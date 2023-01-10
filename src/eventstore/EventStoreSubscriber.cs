@@ -453,13 +453,10 @@ namespace CorshamScience.MessageDispatch.EventStore
                 var checkpointNumber = GetLastProcessedPosition(resolvedEvent);
 
                 WriteCheckpoint(checkpointNumber);
-                _logger.LogInformation(
+                _logger.LogTrace(
                     "Event dispatched from Eventstore subscriber ({0}/{1})",
                     resolvedEvent.Event.EventStreamId,
                     resolvedEvent.Event.EventNumber);
-#if DEBUG
-                _logger.LogTrace("Event dispatched {ResolvedEvent}]", resolvedEvent);
-#endif
             }
             catch (Exception ex)
             {
@@ -468,9 +465,6 @@ namespace CorshamScience.MessageDispatch.EventStore
                     "Error dispatching event from Event Store subscriber ({0}/{1})",
                     resolvedEvent.Event.EventStreamId,
                     resolvedEvent.Event.EventNumber);
-#if DEBUG
-                _logger.LogTrace("Error dispatching event {ResolvedEvent}]", resolvedEvent);
-#endif
             }
         }
 
@@ -497,7 +491,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             }
 
             _checkpoint.Write((long)checkpointNumber);
-            _logger.LogInformation("Checkpoint written. Checkpoint number {CheckpointNumber}", checkpointNumber);
+            _logger.LogTrace("Checkpoint written. Checkpoint number {CheckpointNumber}", checkpointNumber);
             _checkpoint.Flush();
         }
 
