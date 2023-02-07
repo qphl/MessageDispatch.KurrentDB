@@ -27,6 +27,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         private string _streamName;
         private bool _liveOnly;
         private bool _isSubscribed;
+        private bool _isSubscriptionLive;
         private bool _subscribeToAll;
         private ulong? _lastProcessedEventPosition;
         private ulong _actualEndOfStreamPosition;
@@ -102,10 +103,23 @@ namespace CorshamScience.MessageDispatch.EventStore
         {
             get
             {
+                // if we aren't subscribed, it doesn't count as live
+                if (!_isSubscribed)
+                {
+                    return false;
+                }
+
+                // if we are still subscribed, and we have ever been live, we are still live
+                if (_isSubscribed && _isSubscriptionLive)
+                {
+                    return true;
+                }
+
                 var lastStreamPosition = GetLastPositions().Result;
 
-                return (_liveOnly && _lastProcessedEventPosition is null && _isSubscribed) ||
+                _isSubscriptionLive = (_liveOnly && _lastProcessedEventPosition is null && _isSubscribed) ||
                        _lastProcessedEventPosition >= lastStreamPosition.liveThresholdPosition;
+                return _isSubscriptionLive;
             }
         }
 
@@ -319,6 +333,7 @@ namespace CorshamScience.MessageDispatch.EventStore
                     }
 
                     _isSubscribed = true;
+                    _logger.LogInformation("Subscribed to '{StreamName}'", _streamName);
                 }
                 catch (Exception ex)
                 {
@@ -418,6 +433,9 @@ namespace CorshamScience.MessageDispatch.EventStore
             }
 
             _isSubscribed = false;
+
+            // if the subscription drops, set its 'liveness' to false
+            _isSubscriptionLive = false;
             _startingPosition = _lastProcessedEventPosition;
             Start();
         }
@@ -452,6 +470,10 @@ namespace CorshamScience.MessageDispatch.EventStore
                 var checkpointNumber = GetLastProcessedPosition(resolvedEvent);
 
                 WriteCheckpoint(checkpointNumber);
+                _logger.LogTrace(
+                    "Event dispatched from Eventstore subscriber ({0}/{1})",
+                    resolvedEvent.Event.EventStreamId,
+                    resolvedEvent.Event.EventNumber);
             }
             catch (Exception ex)
             {
@@ -486,6 +508,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             }
 
             _checkpoint.Write((long)checkpointNumber);
+            _logger.LogTrace("Checkpoint written. Checkpoint number {CheckpointNumber}", checkpointNumber);
             _checkpoint.Flush();
         }
 

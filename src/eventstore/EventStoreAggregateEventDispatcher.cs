@@ -21,6 +21,7 @@ namespace CorshamScience.MessageDispatch.EventStore
     {
         private readonly JsonSerializerSettings _serializerSettings;
         private readonly Dictionary<string, Type> _typeCache = new Dictionary<string, Type>();
+        private readonly string _metadataKey;
 
 #pragma warning disable SA1648 // inheritdoc should be used with inheriting class
         /// <inheritdoc />
@@ -30,8 +31,15 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="handlers">The handler methods for processing messages with.</param>
         /// <param name="serializerSettings">Determines the settings for the JSON serialization of events.</param>
         // ReSharper disable once UnusedMember.Global
-        public EventStoreAggregateEventDispatcher(IMessageHandlerLookup<Type> handlers, JsonSerializerSettings serializerSettings = null)
-            : base(handlers) => _serializerSettings = serializerSettings ?? new JsonSerializerSettings();
+        public EventStoreAggregateEventDispatcher(
+            IMessageHandlerLookup<Type> handlers,
+            JsonSerializerSettings serializerSettings = null,
+            string metadataKey = null)
+            : base(handlers)
+            {
+                _serializerSettings = serializerSettings ?? new JsonSerializerSettings();
+                _metadataKey = metadataKey ?? "ClrType";
+            }
 #pragma warning restore SA1648 // inheritdoc should be used with inheriting class
 
         /// <inheritdoc />
@@ -49,19 +57,19 @@ namespace CorshamScience.MessageDispatch.EventStore
             {
                 IDictionary<string, JToken> metadata = JObject.Parse(Encoding.UTF8.GetString(rawMessage.Event.Metadata.Span));
 
-                if (!metadata.ContainsKey("ClrType"))
+                if (!metadata.ContainsKey(_metadataKey))
                 {
                     return false;
                 }
 
-                var typeString = (string)metadata["ClrType"];
+                string typeString = (string)metadata[_metadataKey];
 
                 if (!_typeCache.TryGetValue(typeString, out var cached))
                 {
                     try
                     {
                         cached = Type.GetType(
-                            (string)metadata["ClrType"],
+                            typeString,
                             (assemblyName) =>
                             {
                                 assemblyName.Version = null;
