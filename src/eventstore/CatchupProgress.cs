@@ -65,7 +65,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// Gets the percentage of events in the stream which require catching up on, which have been processed (either by number of events or position in the transaction log).
         /// </summary>
         public decimal CatchupPercentage =>
-            LastProcessedEventPosition - StartPosition == 0
+            LastProcessedEventPosition - StartPosition == 0 || EndOfStreamPosition - StartPosition == 0
                 ? 0.0m
                 : ((decimal)LastProcessedEventPosition - StartPosition) / (EndOfStreamPosition - StartPosition) * 100;
 
