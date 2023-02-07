@@ -59,7 +59,10 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <summary>
         /// Gets the percentage of events in the stream which have been processed (either by number of events or position in the transaction log).
         /// </summary>
-        public decimal OverallPercentage => (decimal)LastProcessedEventPosition / EndOfStreamPosition * 100;
+        public decimal OverallPercentage =>
+            LastProcessedEventPosition == 0 || EndOfStreamPosition == 0
+                ? 0.0m
+                : (decimal)LastProcessedEventPosition / EndOfStreamPosition * 100;
 
         /// <summary>
         /// Gets the percentage of events in the stream which require catching up on, which have been processed (either by number of events or position in the transaction log).
