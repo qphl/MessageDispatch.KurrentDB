@@ -29,7 +29,7 @@ namespace CorshamScience.MessageDispatch.EventStore
 
             _fileStream = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
 
-            if (_fileStream.Length != 8)
+            if (_fileStream.Length != sizeof(long))
             {
                 _fileStream.SetLength(8);
             }
