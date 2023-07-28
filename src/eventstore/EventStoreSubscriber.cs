@@ -56,7 +56,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             string checkpointFilePath,
             ulong liveEventThreshold)
         {
-            _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, "lastProcessedPosition", false, -1);
+            _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, -1);
             var initialCheckpointPosition = _checkpoint.Read();
             ulong? startingPosition = null;
 
@@ -509,7 +509,6 @@ namespace CorshamScience.MessageDispatch.EventStore
 
             _checkpoint.Write((long)checkpointNumber);
             _logger.LogTrace("Checkpoint written. Checkpoint number {CheckpointNumber}", checkpointNumber);
-            _checkpoint.Flush();
         }
 
         private async Task<(ulong liveThresholdPosition, ulong actualEndOfStreamPosition)> GetLastPositions()
