@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CorshamScience.MessageDispatch.Core;
-using global::EventStore.Client;
+using KurrentDB.Client;
 using Microsoft.Extensions.Logging;
 
 namespace PharmaxoScientific.MessageDispatch.EventStore;
@@ -19,8 +19,7 @@ public class KurrentSubscriber
     private const uint CheckpointInterval = 1;
     private readonly WriteThroughFileCheckpoint _checkpoint;
     private readonly object _subscriptionLock = new object();
-
-    private EventStoreClient _eventStoreClient;
+    private KurrentDBClient _eventStoreClient;
     private ulong? _startingPosition;
     private StreamSubscription _subscription;
     private string _streamName;
@@ -39,7 +38,7 @@ public class KurrentSubscriber
     private ILogger _logger;
 
     private KurrentSubscriber(
-        EventStoreClient eventStoreClient,
+        KurrentDBClient eventStoreClient,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
@@ -48,7 +47,7 @@ public class KurrentSubscriber
         => Init(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold, startingPosition);
 
     private KurrentSubscriber(
-        EventStoreClient eventStoreClient,
+        KurrentDBClient eventStoreClient,
         IDispatcher<ResolvedEvent> dispatcher,
         ILogger logger,
         string streamName,
@@ -68,7 +67,7 @@ public class KurrentSubscriber
     }
 
     private KurrentSubscriber(
-        EventStoreClient eventStoreClient,
+        KurrentDBClient eventStoreClient,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
@@ -133,7 +132,7 @@ public class KurrentSubscriber
     /// <returns>A new EventStoreSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentSubscriber CreateLiveSubscription(
-        EventStoreClient eventStoreClient,
+        KurrentDBClient eventStoreClient,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
@@ -152,7 +151,7 @@ public class KurrentSubscriber
     /// <returns>A new EventStoreSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentSubscriber CreateCatchupSubscriptionUsingCheckpoint(
-        EventStoreClient eventStoreClient,
+        KurrentDBClient eventStoreClient,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
@@ -172,7 +171,7 @@ public class KurrentSubscriber
     /// <returns>A new EventStoreSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentSubscriber CreateCatchupSubscriptionFromPosition(
-        EventStoreClient eventStoreClient,
+        KurrentDBClient eventStoreClient,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
@@ -190,7 +189,7 @@ public class KurrentSubscriber
     /// <returns>A new EventStoreSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentSubscriber CreateCatchupSubscriptionSubscribedToAll(
-        EventStoreClient eventStoreClient,
+        KurrentDBClient eventStoreClient,
         IDispatcher<ResolvedEvent> dispatcher,
         ILogger logger,
         ulong liveEventThreshold = 10)
@@ -212,7 +211,7 @@ public class KurrentSubscriber
     /// <returns>A new EventStoreSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentSubscriber CreateCatchupSubscriptionSubscribedToAllFromPosition(
-        EventStoreClient eventStoreClient,
+        KurrentDBClient eventStoreClient,
         IDispatcher<ResolvedEvent> dispatcher,
         ILogger logger,
         ulong? startingPosition,
@@ -236,7 +235,7 @@ public class KurrentSubscriber
     /// <returns>A new EventStoreSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentSubscriber CreateCatchupSubscriptionSubscribedToAllUsingCheckpoint(
-        EventStoreClient eventStoreClient,
+        KurrentDBClient eventStoreClient,
         IDispatcher<ResolvedEvent> dispatcher,
         ILogger logger,
         string checkpointFilePath,
@@ -368,7 +367,7 @@ public class KurrentSubscriber
     }
 
     private void Init(
-        EventStoreClient connection,
+        KurrentDBClient connection,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,

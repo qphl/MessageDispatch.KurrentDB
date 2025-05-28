@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using CorshamScience.MessageDispatch.Core;
-using global::EventStore.Client;
+using KurrentDB.Client;
 using Newtonsoft.Json;
 
 namespace PharmaxoScientific.MessageDispatch.EventStore;
