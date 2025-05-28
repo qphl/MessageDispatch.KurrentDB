@@ -15,7 +15,7 @@ namespace PharmaxoScientific.MessageDispatch.EventStore;
 /// A deserializing event dispatcher for events produced by CorshamScience.AggregatRepository.
 /// </summary>
 // ReSharper disable once UnusedMember.Global
-public class KurrentAggregateEventDispatcher : DeserializingMessageDispatcher<ResolvedEvent, Type>
+public class KurrentDBAggregateEventDispatcher : DeserializingMessageDispatcher<ResolvedEvent, Type>
 {
     private readonly JsonSerializerSettings _serializerSettings;
 
@@ -25,13 +25,13 @@ public class KurrentAggregateEventDispatcher : DeserializingMessageDispatcher<Re
 #pragma warning disable SA1648 // inheritdoc should be used with inheriting class
     /// <inheritdoc />
     /// <summary>
-    /// Initializes a new instance of the <see cref="KurrentAggregateEventDispatcher" /> class.
+    /// Initializes a new instance of the <see cref="KurrentDBAggregateEventDispatcher" /> class.
     /// </summary>
     /// <param name="handlers">The handler methods for processing messages with.</param>
     /// <param name="serializerSettings">Determines the settings for the JSON serialization of events.</param>
     /// <param name="metadataKey">Optional parameter for a metadata key default is ClrType</param>
     // ReSharper disable once UnusedMember.Global
-    public KurrentAggregateEventDispatcher(
+    public KurrentDBAggregateEventDispatcher(
         IMessageHandlerLookup<Type> handlers,
         JsonSerializerSettings serializerSettings = null,
         string metadataKey = null)

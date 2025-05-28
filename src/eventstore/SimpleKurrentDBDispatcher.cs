@@ -13,7 +13,7 @@ namespace PharmaxoScientific.MessageDispatch.EventStore;
 /// <summary>
 /// A simple event store dispatcher.
 /// </summary>
-public class SimpleKurrentDispatcher : DeserializingMessageDispatcher<ResolvedEvent, Type>
+public class SimpleKurrentDBDispatcher : DeserializingMessageDispatcher<ResolvedEvent, Type>
 {
     private readonly Dictionary<string, Type> _eventTypeMapping;
     private readonly JsonSerializerSettings _serializerSettings;
@@ -21,13 +21,13 @@ public class SimpleKurrentDispatcher : DeserializingMessageDispatcher<ResolvedEv
 #pragma warning disable SA1648 // inheritdoc should be used with inheriting class
     /// <inheritdoc />
     /// <summary>
-    /// Initializes a new instance of the <see cref="SimpleKurrentDispatcher" /> class.
+    /// Initializes a new instance of the <see cref="SimpleKurrentDBDispatcher" /> class.
     /// </summary>
     /// <param name="handlers">Message handler lookup of a type.</param>
     /// <param name="eventTypeMapping">Event Type Map.</param>
     /// <param name="serializerSettings">Json Serializer settings.</param>
     // ReSharper disable once UnusedMember.Global
-    public SimpleKurrentDispatcher(IMessageHandlerLookup<Type> handlers, Dictionary<string, Type> eventTypeMapping, JsonSerializerSettings serializerSettings = null)
+    public SimpleKurrentDBDispatcher(IMessageHandlerLookup<Type> handlers, Dictionary<string, Type> eventTypeMapping, JsonSerializerSettings serializerSettings = null)
         : base(handlers)
     {
         _eventTypeMapping = eventTypeMapping;

@@ -11,7 +11,7 @@ namespace PharmaxoScientific.MessageDispatch.EventStore;
 /// <summary>
 /// A wrapping event dispatcher which keeps track of a checkpoint, and whether the dispatched event has been previously processed or not.
 /// </summary>
-public class CheckpointingWrappingDispatcher : KurrentAggregateEventDispatcher
+public class CheckpointingWrappingDispatcher : KurrentDBAggregateEventDispatcher
 {
     private readonly WriteThroughFileCheckpoint _checkpoint;
     private readonly long _startupCheckpointValue;
