@@ -1,4 +1,8 @@
-﻿/* This file is taken from Event Store codebase
+﻿// <copyright file="NoSynchronizationContextScope.cs" company="Pharmaxo Scientific">
+// Copyright (c) Pharmaxo Scientific. All rights reserved.
+// </copyright>
+
+/* This file is taken from Event Store codebase
    https://github.com/EventStore/samples/blob/main/CQRS_Flow/.NET/Core/Core/Threading/NoSynchronizationContextScope.cs
    As such we should not add a Pharmaxo Scientific copyright file header */
 

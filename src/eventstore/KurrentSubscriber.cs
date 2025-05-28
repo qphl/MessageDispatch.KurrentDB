@@ -295,19 +295,19 @@ namespace PharmaxoScientific.MessageDispatch.EventStore
                                     SubscriptionDropped).Result;
                                 break;
                             case false when !_subscribeToAll:
-                            {
-                                var fromStream = _startingPosition.HasValue ?
-                                    FromStream.After(new StreamPosition(_startingPosition.Value)) :
-                                    FromStream.Start;
+                                {
+                                    var fromStream = _startingPosition.HasValue ?
+                                        FromStream.After(new StreamPosition(_startingPosition.Value)) :
+                                        FromStream.Start;
 
-                                _subscription = _eventStoreClient.SubscribeToStreamAsync(
-                                    _streamName,
-                                    fromStream,
-                                    Appeared,
-                                    resolveLinkTos,
-                                    SubscriptionDropped).Result;
-                                break;
-                            }
+                                    _subscription = _eventStoreClient.SubscribeToStreamAsync(
+                                        _streamName,
+                                        fromStream,
+                                        Appeared,
+                                        resolveLinkTos,
+                                        SubscriptionDropped).Result;
+                                    break;
+                                }
 
                             case true when _subscribeToAll:
                                 _subscription = _eventStoreClient.SubscribeToAllAsync(
@@ -402,19 +402,19 @@ namespace PharmaxoScientific.MessageDispatch.EventStore
                     _liveThresholdPosition = eventsWithinThreshold.Last().OriginalEvent.Position.CommitPosition;
                     _actualEndOfStreamPosition = eventsWithinThreshold.First().OriginalEvent.Position.CommitPosition;
                 }
-                : async () =>
-                {
-                    var eventsWithinThreshold = await _eventStoreClient.ReadStreamAsync(
-                            Direction.Backwards,
-                            _streamName,
-                            StreamPosition.End,
-                            maxCount: (long)_liveEventThreshold,
-                            resolveLinkTos: false)
-                        .ToListAsync();
+            : async () =>
+            {
+                var eventsWithinThreshold = await _eventStoreClient.ReadStreamAsync(
+                        Direction.Backwards,
+                        _streamName,
+                        StreamPosition.End,
+                        maxCount: (long)_liveEventThreshold,
+                        resolveLinkTos: false)
+                    .ToListAsync();
 
-                    _liveThresholdPosition = eventsWithinThreshold.Last().OriginalEventNumber.ToUInt64();
-                    _actualEndOfStreamPosition = eventsWithinThreshold.First().OriginalEventNumber.ToUInt64();
-                };
+                _liveThresholdPosition = eventsWithinThreshold.Last().OriginalEventNumber.ToUInt64();
+                _actualEndOfStreamPosition = eventsWithinThreshold.First().OriginalEventNumber.ToUInt64();
+            };
         }
 
         private void SubscriptionDropped(StreamSubscription eventStoreCatchUpSubscription, SubscriptionDroppedReason subscriptionDropReason, Exception ex)

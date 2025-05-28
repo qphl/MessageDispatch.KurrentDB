@@ -36,10 +36,10 @@ namespace PharmaxoScientific.MessageDispatch.EventStore
             JsonSerializerSettings serializerSettings = null,
             string metadataKey = null)
             : base(handlers)
-            {
-                _serializerSettings = serializerSettings ?? new JsonSerializerSettings();
-                _metadataKey = metadataKey ?? "ClrType";
-            }
+        {
+            _serializerSettings = serializerSettings ?? new JsonSerializerSettings();
+            _metadataKey = metadataKey ?? "ClrType";
+        }
 #pragma warning restore SA1648 // inheritdoc should be used with inheriting class
 
         /// <inheritdoc />
