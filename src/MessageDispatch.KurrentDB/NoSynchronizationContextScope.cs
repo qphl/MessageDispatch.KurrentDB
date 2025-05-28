@@ -10,7 +10,7 @@ using System.Threading;
 // ReSharper disable InconsistentNaming
 #pragma warning disable CS8632, SA1600, SX1309
 
-namespace PharmaxoScientific.MessageDispatch.EventStore;
+namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
 internal static class NoSynchronizationContextScope
 {

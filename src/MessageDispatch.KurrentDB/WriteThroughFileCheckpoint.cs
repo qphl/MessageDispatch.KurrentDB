@@ -4,7 +4,7 @@ using System.IO;
 
 #pragma warning disable CA1001
 
-namespace PharmaxoScientific.MessageDispatch.EventStore;
+namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
 /// <summary>
 /// Writes a checkpoint to a file pulled from event store.

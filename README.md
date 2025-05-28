@@ -1,5 +1,5 @@
-# PharmaxoScientific.MessageDispatch.EventStore
-A package to use EventStore with CorshamScience.MessageDispatch.
+# PharmaxoScientific.MessageDispatch.KurrentDB
+A package to use KurrentDB with PharmaxoScientific.MessageDispatch.KurrentDB
 
 
 

@@ -6,23 +6,23 @@ using CorshamScience.MessageDispatch.Core;
 using KurrentDB.Client;
 using Newtonsoft.Json.Linq;
 
-namespace PharmaxoScientific.MessageDispatch.EventStore;
+namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
 /// <inheritdoc />
 /// <summary>
 /// A message dispatcher that deserializes messages to a JObject upon dispatch.
 /// </summary>
 // ReSharper disable once UnusedMember.Global
-public class KurrentDBJObjectDispatcher : DeserializingMessageDispatcher<ResolvedEvent, string>
+public class KurrentDbjObjectDispatcher : DeserializingMessageDispatcher<ResolvedEvent, string>
 {
 #pragma warning disable SA1648 // inheritdoc should be used with inheriting class
     /// <inheritdoc />
     /// <summary>
-    /// Initializes a new instance of the <see cref="KurrentDBJObjectDispatcher" /> class.
+    /// Initializes a new instance of the <see cref="KurrentDbjObjectDispatcher" /> class.
     /// </summary>
     /// <param name="handlers">Lookups for the handlers which the class can use to process messages.</param>
     // ReSharper disable once UnusedMember.Global
-    public KurrentDBJObjectDispatcher(IMessageHandlerLookup<string> handlers)
+    public KurrentDbjObjectDispatcher(IMessageHandlerLookup<string> handlers)
         : base(handlers)
     {
     }

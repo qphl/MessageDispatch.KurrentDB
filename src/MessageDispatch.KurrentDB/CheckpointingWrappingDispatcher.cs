@@ -6,12 +6,12 @@ using CorshamScience.MessageDispatch.Core;
 using KurrentDB.Client;
 using Newtonsoft.Json.Linq;
 
-namespace PharmaxoScientific.MessageDispatch.EventStore;
+namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
 /// <summary>
 /// A wrapping event dispatcher which keeps track of a checkpoint, and whether the dispatched event has been previously processed or not.
 /// </summary>
-public class CheckpointingWrappingDispatcher : KurrentDBAggregateEventDispatcher
+public class CheckpointingWrappingDispatcher : KurrentDbAggregateEventDispatcher
 {
     private readonly WriteThroughFileCheckpoint _checkpoint;
     private readonly long _startupCheckpointValue;

@@ -2,7 +2,7 @@
 
 using Newtonsoft.Json.Linq;
 
-namespace PharmaxoScientific.MessageDispatch.EventStore;
+namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
 /// <summary>
 /// Represents a wrapper for an event.

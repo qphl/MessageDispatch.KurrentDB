@@ -1,6 +1,6 @@
 ﻿// Copyright (c) Pharmaxo. All rights reserved.
 
-namespace PharmaxoScientific.MessageDispatch.EventStore;
+namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
 /// <summary>
 /// Class to handle calculating catchup progress.

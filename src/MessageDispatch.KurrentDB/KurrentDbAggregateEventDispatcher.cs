@@ -8,30 +8,30 @@ using KurrentDB.Client;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace PharmaxoScientific.MessageDispatch.EventStore;
+namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
 /// <inheritdoc />
 /// <summary>
 /// A deserializing event dispatcher for events produced by CorshamScience.AggregatRepository.
 /// </summary>
 // ReSharper disable once UnusedMember.Global
-public class KurrentDBAggregateEventDispatcher : DeserializingMessageDispatcher<ResolvedEvent, Type>
+public class KurrentDbAggregateEventDispatcher : DeserializingMessageDispatcher<ResolvedEvent, Type>
 {
     private readonly JsonSerializerSettings _serializerSettings;
 
-    private readonly Dictionary<string, Type> _typeCache = new Dictionary<string, Type>();
+    private readonly Dictionary<string, Type> _typeCache = new();
     private readonly string _metadataKey;
 
 #pragma warning disable SA1648 // inheritdoc should be used with inheriting class
     /// <inheritdoc />
     /// <summary>
-    /// Initializes a new instance of the <see cref="KurrentDBAggregateEventDispatcher" /> class.
+    /// Initializes a new instance of the <see cref="KurrentDbAggregateEventDispatcher" /> class.
     /// </summary>
     /// <param name="handlers">The handler methods for processing messages with.</param>
     /// <param name="serializerSettings">Determines the settings for the JSON serialization of events.</param>
-    /// <param name="metadataKey">Optional parameter for a metadata key default is ClrType</param>
+    /// <param name="metadataKey">Optional parameter for the metadata key. Default is "ClrType"</param>
     // ReSharper disable once UnusedMember.Global
-    public KurrentDBAggregateEventDispatcher(
+    public KurrentDbAggregateEventDispatcher(
         IMessageHandlerLookup<Type> handlers,
         JsonSerializerSettings serializerSettings = null,
         string metadataKey = null)
@@ -62,7 +62,7 @@ public class KurrentDBAggregateEventDispatcher : DeserializingMessageDispatcher<
                 return false;
             }
 
-            string typeString = (string)metadata[_metadataKey];
+            var typeString = (string)metadata[_metadataKey];
 
             if (!_typeCache.TryGetValue(typeString, out var cached))
             {

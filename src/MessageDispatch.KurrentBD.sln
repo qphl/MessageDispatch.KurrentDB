@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35931.192
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MessageDispatch.KurrentDB", "MessageDispatch.KurrentDB\MessageDispatch.KurrentDB.csproj", "{8B3CD5D9-28DB-4823-8ACE-C5B9770FFE5B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8B3CD5D9-28DB-4823-8ACE-C5B9770FFE5B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B3CD5D9-28DB-4823-8ACE-C5B9770FFE5B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B3CD5D9-28DB-4823-8ACE-C5B9770FFE5B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8B3CD5D9-28DB-4823-8ACE-C5B9770FFE5B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {58A60822-0CA7-4255-AA1E-533ECE617C52}
+	EndGlobalSection
+EndGlobal
