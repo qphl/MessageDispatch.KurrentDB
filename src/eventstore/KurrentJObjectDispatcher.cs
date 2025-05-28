@@ -1,56 +1,53 @@
-﻿// <copyright file="KurrentJObjectDispatcher.cs" company="Pharmaxo Scientific">
-// Copyright (c) Pharmaxo Scientific. All rights reserved.
-// </copyright>
+﻿// Copyright (c) Pharmaxo. All rights reserved.
 
-namespace PharmaxoScientific.MessageDispatch.EventStore
+using System;
+using System.Text;
+using CorshamScience.MessageDispatch.Core;
+using global::EventStore.Client;
+using Newtonsoft.Json.Linq;
+
+namespace PharmaxoScientific.MessageDispatch.EventStore;
+
+/// <inheritdoc />
+/// <summary>
+/// A message dispatcher that deserializes messages to a JObject upon dispatch.
+/// </summary>
+// ReSharper disable once UnusedMember.Global
+public class KurrentJObjectDispatcher : DeserializingMessageDispatcher<ResolvedEvent, string>
 {
-    using System;
-    using System.Text;
-    using CorshamScience.MessageDispatch.Core;
-    using global::EventStore.Client;
-    using Newtonsoft.Json.Linq;
-
+#pragma warning disable SA1648 // inheritdoc should be used with inheriting class
     /// <inheritdoc />
     /// <summary>
-    /// A message dispatcher that deserializes messages to a JObject upon dispatch.
+    /// Initializes a new instance of the <see cref="KurrentJObjectDispatcher" /> class.
     /// </summary>
+    /// <param name="handlers">Lookups for the handlers which the class can use to process messages.</param>
     // ReSharper disable once UnusedMember.Global
-    public class KurrentJObjectDispatcher : DeserializingMessageDispatcher<ResolvedEvent, string>
+    public KurrentJObjectDispatcher(IMessageHandlerLookup<string> handlers)
+        : base(handlers)
     {
-#pragma warning disable SA1648 // inheritdoc should be used with inheriting class
-        /// <inheritdoc />
-        /// <summary>
-        /// Initializes a new instance of the <see cref="KurrentJObjectDispatcher" /> class.
-        /// </summary>
-        /// <param name="handlers">Lookups for the handlers which the class can use to process messages.</param>
-        // ReSharper disable once UnusedMember.Global
-        public KurrentJObjectDispatcher(IMessageHandlerLookup<string> handlers)
-            : base(handlers)
-        {
-        }
+    }
 #pragma warning restore SA1648 // inheritdoc should be used with inheriting class
 
-        /// <inheritdoc />
-        protected override bool TryGetMessageType(ResolvedEvent rawMessage, out string type)
+    /// <inheritdoc />
+    protected override bool TryGetMessageType(ResolvedEvent rawMessage, out string type)
+    {
+        type = rawMessage.Event.EventType;
+        return true;
+    }
+
+    /// <inheritdoc />
+    protected override bool TryDeserialize(string messageType, ResolvedEvent rawMessage, out object deserialized)
+    {
+        deserialized = null;
+
+        try
         {
-            type = rawMessage.Event.EventType;
+            deserialized = JObject.Parse(Encoding.UTF8.GetString(rawMessage.Event.Data.Span.ToArray()));
             return true;
         }
-
-        /// <inheritdoc />
-        protected override bool TryDeserialize(string messageType, ResolvedEvent rawMessage, out object deserialized)
+        catch (Exception)
         {
-            deserialized = null;
-
-            try
-            {
-                deserialized = JObject.Parse(Encoding.UTF8.GetString(rawMessage.Event.Data.Span.ToArray()));
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
+            return false;
         }
     }
 }

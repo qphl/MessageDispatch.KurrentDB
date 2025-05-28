@@ -31,9 +31,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CorshamScience.CodeStyle.CSharp.Full" Version="3.0.0">
-      <PrivateAssets>All</PrivateAssets>
-    </PackageReference>
+    <AdditionalFiles Remove="C:\Users\chris.fraser\.nuget\packages\corshamscience.codestyle.csharp.full\3.0.0\stylecop.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="CorshamScience.MessageDispatch.Core" Version="2.0.0" />
     <PackageReference Include="EventStore.Client.Grpc.Streams" Version="23.3.9" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />

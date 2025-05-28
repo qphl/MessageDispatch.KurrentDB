@@ -1,6 +1,7 @@
-﻿// <copyright file="NoSynchronizationContextScope.cs" company="Pharmaxo Scientific">
-// Copyright (c) Pharmaxo Scientific. All rights reserved.
-// </copyright>
+﻿// Copyright (c) Pharmaxo. All rights reserved.
+
+using System;
+using System.Threading;
 
 /* This file is taken from Event Store codebase
    https://github.com/EventStore/samples/blob/main/CQRS_Flow/.NET/Core/Core/Threading/NoSynchronizationContextScope.cs
@@ -9,32 +10,28 @@
 // ReSharper disable InconsistentNaming
 #pragma warning disable CS8632, SA1600, SX1309
 
-namespace PharmaxoScientific.MessageDispatch.EventStore
+namespace PharmaxoScientific.MessageDispatch.EventStore;
+
+internal static class NoSynchronizationContextScope
 {
-    using System;
-    using System.Threading;
-
-    internal static class NoSynchronizationContextScope
+    public static Disposable Enter()
     {
-        public static Disposable Enter()
+        var context = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+        return new Disposable(context);
+    }
+
+    public struct Disposable : IDisposable
+    {
+        private readonly SynchronizationContext? synchronizationContext;
+
+        public Disposable(SynchronizationContext? synchronizationContext)
         {
-            var context = SynchronizationContext.Current;
-            SynchronizationContext.SetSynchronizationContext(null);
-            return new Disposable(context);
+            this.synchronizationContext = synchronizationContext;
         }
 
-        public struct Disposable : IDisposable
-        {
-            private readonly SynchronizationContext? synchronizationContext;
-
-            public Disposable(SynchronizationContext? synchronizationContext)
-            {
-                this.synchronizationContext = synchronizationContext;
-            }
-
-            public void Dispose() =>
-                SynchronizationContext.SetSynchronizationContext(synchronizationContext);
-        }
+        public void Dispose() =>
+            SynchronizationContext.SetSynchronizationContext(synchronizationContext);
     }
 }
 #pragma warning restore CS8632, SA1600, SX1309
