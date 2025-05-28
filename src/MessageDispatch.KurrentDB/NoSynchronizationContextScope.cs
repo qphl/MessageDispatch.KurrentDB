@@ -23,15 +23,12 @@ internal static class NoSynchronizationContextScope
 
     public struct Disposable : IDisposable
     {
-        private readonly SynchronizationContext? synchronizationContext;
+        private readonly SynchronizationContext? _synchronizationContext;
 
-        public Disposable(SynchronizationContext? synchronizationContext)
-        {
-            this.synchronizationContext = synchronizationContext;
-        }
+        public Disposable(SynchronizationContext? synchronizationContext) => _synchronizationContext = synchronizationContext;
 
         public void Dispose() =>
-            SynchronizationContext.SetSynchronizationContext(synchronizationContext);
+            SynchronizationContext.SetSynchronizationContext(_synchronizationContext);
     }
 }
 #pragma warning restore CS8632, SA1600, SX1309
