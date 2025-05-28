@@ -1,4 +1,4 @@
-# CorshamScience.MessageDispatch.EventStore
+# PharmaxoScientific.MessageDispatch.EventStore
 A package to use EventStore with CorshamScience.MessageDispatch.
 
 
