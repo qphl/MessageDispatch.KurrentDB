@@ -1,8 +1,8 @@
-﻿// <copyright file="SimpleEventStoreDispatcher.cs" company="Corsham Science">
-// Copyright (c) Corsham Science. All rights reserved.
+﻿// <copyright file="SimpleKurrentDispatcher.cs" company="Pharmaxo Scientific">
+// Copyright (c) Pharmaxo Scientific. All rights reserved.
 // </copyright>
 
-namespace CorshamScience.MessageDispatch.EventStore
+namespace PharmaxoScientific.MessageDispatch.EventStore
 {
     using System;
     using System.Collections.Generic;
@@ -15,7 +15,7 @@ namespace CorshamScience.MessageDispatch.EventStore
     /// <summary>
     /// A simple event store dispatcher.
     /// </summary>
-    public class SimpleEventStoreDispatcher : DeserializingMessageDispatcher<ResolvedEvent, Type>
+    public class SimpleKurrentDispatcher : DeserializingMessageDispatcher<ResolvedEvent, Type>
     {
         private readonly Dictionary<string, Type> _eventTypeMapping;
         private readonly JsonSerializerSettings _serializerSettings;
@@ -23,13 +23,13 @@ namespace CorshamScience.MessageDispatch.EventStore
 #pragma warning disable SA1648 // inheritdoc should be used with inheriting class
         /// <inheritdoc />
         /// <summary>
-        /// Initializes a new instance of the <see cref="SimpleEventStoreDispatcher" /> class.
+        /// Initializes a new instance of the <see cref="SimpleKurrentDispatcher" /> class.
         /// </summary>
         /// <param name="handlers">Message handler lookup of a type.</param>
         /// <param name="eventTypeMapping">Event Type Map.</param>
         /// <param name="serializerSettings">Json Serializer settings.</param>
         // ReSharper disable once UnusedMember.Global
-        public SimpleEventStoreDispatcher(IMessageHandlerLookup<Type> handlers, Dictionary<string, Type> eventTypeMapping, JsonSerializerSettings serializerSettings = null)
+        public SimpleKurrentDispatcher(IMessageHandlerLookup<Type> handlers, Dictionary<string, Type> eventTypeMapping, JsonSerializerSettings serializerSettings = null)
             : base(handlers)
         {
             _eventTypeMapping = eventTypeMapping;
@@ -51,7 +51,7 @@ namespace CorshamScience.MessageDispatch.EventStore
 
             try
             {
-                var jsonString = Encoding.UTF8.GetString(rawMessage.Event.Data.Span);
+                var jsonString = Encoding.UTF8.GetString(rawMessage.Event.Data.Span.ToArray());
                 deserialized = JsonConvert.DeserializeObject(jsonString, messageType, _serializerSettings);
                 return deserialized != null;
             }

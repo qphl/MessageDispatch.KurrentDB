@@ -1,8 +1,8 @@
-﻿// <copyright file="EventWrapper.cs" company="Corsham Science">
-// Copyright (c) Corsham Science. All rights reserved.
+﻿// <copyright file="EventWrapper.cs" company="Pharmaxo Scientific">
+// Copyright (c) Pharmaxo Scientific. All rights reserved.
 // </copyright>
 
-namespace CorshamScience.MessageDispatch.EventStore
+namespace PharmaxoScientific.MessageDispatch.EventStore
 {
     using Newtonsoft.Json.Linq;
 

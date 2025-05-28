@@ -1,11 +1,11 @@
 ﻿/* This file is taken from Event Store codebase
    https://github.com/EventStore/samples/blob/main/CQRS_Flow/.NET/Core/Core/Threading/NoSynchronizationContextScope.cs
-   As such we should not add a Corsham Science copyright file header */
+   As such we should not add a Pharmaxo Scientific copyright file header */
 
 // ReSharper disable InconsistentNaming
 #pragma warning disable CS8632, SA1600, SX1309
 
-namespace CorshamScience.MessageDispatch.EventStore
+namespace PharmaxoScientific.MessageDispatch.EventStore
 {
     using System;
     using System.Threading;

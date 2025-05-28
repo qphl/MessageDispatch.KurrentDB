@@ -1,9 +1,9 @@
-﻿// <copyright file="WriteThroughFileCheckpoint.cs" company="Corsham Science">
-// Copyright (c) Corsham Science. All rights reserved.
+﻿// <copyright file="WriteThroughFileCheckpoint.cs" company="Pharmaxo Scientific">
+// Copyright (c) Pharmaxo Scientific. All rights reserved.
 // </copyright>
 #pragma warning disable CA1001
 
-namespace CorshamScience.MessageDispatch.EventStore
+namespace PharmaxoScientific.MessageDispatch.EventStore
 {
     using System.IO;
 

@@ -1,8 +1,8 @@
-﻿// <copyright file="EventStoreSubscriber.cs" company="Corsham Science">
-// Copyright (c) Corsham Science. All rights reserved.
+﻿// <copyright file="KurrentSubscriber.cs" company="Pharmaxo Scientific">
+// Copyright (c) Pharmaxo Scientific. All rights reserved.
 // </copyright>
 
-namespace CorshamScience.MessageDispatch.EventStore
+namespace PharmaxoScientific.MessageDispatch.EventStore
 {
     using System;
     using System.Linq;
@@ -15,9 +15,10 @@ namespace CorshamScience.MessageDispatch.EventStore
     /// <summary>
     /// Subscriber for event store.
     /// </summary>
-    public class EventStoreSubscriber
+    public class KurrentSubscriber
     {
         private const string AllStreamName = "$all";
+        private const uint CheckpointInterval = 1;
         private readonly WriteThroughFileCheckpoint _checkpoint;
         private readonly object _subscriptionLock = new object();
 
@@ -39,7 +40,7 @@ namespace CorshamScience.MessageDispatch.EventStore
         private IDispatcher<ResolvedEvent> _dispatcher;
         private ILogger _logger;
 
-        private EventStoreSubscriber(
+        private KurrentSubscriber(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
@@ -48,7 +49,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             ulong liveEventThreshold)
             => Init(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold, startingPosition);
 
-        private EventStoreSubscriber(
+        private KurrentSubscriber(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             ILogger logger,
@@ -68,7 +69,7 @@ namespace CorshamScience.MessageDispatch.EventStore
             Init(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold, startingPosition);
         }
 
-        private EventStoreSubscriber(
+        private KurrentSubscriber(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
@@ -133,13 +134,13 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
-        public static EventStoreSubscriber CreateLiveSubscription(
+        public static KurrentSubscriber CreateLiveSubscription(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
             ulong liveEventThreshold = 10)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold);
+            => new KurrentSubscriber(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold);
 
         /// <summary>
         /// Creates an eventstore catchup subscription using a checkpoint file.
@@ -152,14 +153,14 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
-        public static EventStoreSubscriber CreateCatchupSubscriptionUsingCheckpoint(
+        public static KurrentSubscriber CreateCatchupSubscriptionUsingCheckpoint(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
             string checkpointFilePath,
             ulong liveEventThreshold = 10)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, logger, streamName, checkpointFilePath, liveEventThreshold);
+            => new KurrentSubscriber(eventStoreClient, dispatcher, logger, streamName, checkpointFilePath, liveEventThreshold);
 
         /// <summary>
         /// Creates an eventstore catchup subscription from a position.
@@ -172,14 +173,14 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
-        public static EventStoreSubscriber CreateCatchupSubscriptionFromPosition(
+        public static KurrentSubscriber CreateCatchupSubscriptionFromPosition(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             string streamName,
             ILogger logger,
             ulong? startingPosition,
             ulong liveEventThreshold = 10)
-            => new EventStoreSubscriber(eventStoreClient, dispatcher, streamName, logger, startingPosition, liveEventThreshold);
+            => new KurrentSubscriber(eventStoreClient, dispatcher, streamName, logger, startingPosition, liveEventThreshold);
 
         /// <summary>
         /// Creates an eventstore catchup subscription that is subscribed to all from the start.
@@ -190,12 +191,12 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
-        public static EventStoreSubscriber CreateCatchupSubscriptionSubscribedToAll(
+        public static KurrentSubscriber CreateCatchupSubscriptionSubscribedToAll(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             ILogger logger,
             ulong liveEventThreshold = 10)
-            => new EventStoreSubscriber(
+            => new KurrentSubscriber(
                 eventStoreClient,
                 dispatcher,
                 AllStreamName,
@@ -212,13 +213,13 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
-        public static EventStoreSubscriber CreateCatchupSubscriptionSubscribedToAllFromPosition(
+        public static KurrentSubscriber CreateCatchupSubscriptionSubscribedToAllFromPosition(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             ILogger logger,
             ulong? startingPosition,
             ulong liveEventThreshold = 10)
-            => new EventStoreSubscriber(
+            => new KurrentSubscriber(
                 eventStoreClient,
                 dispatcher,
                 AllStreamName,
@@ -236,13 +237,13 @@ namespace CorshamScience.MessageDispatch.EventStore
         /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
         /// <returns>A new EventStoreSubscriber object.</returns>
         // ReSharper disable once UnusedMember.Global
-        public static EventStoreSubscriber CreateCatchupSubscriptionSubscribedToAllUsingCheckpoint(
+        public static KurrentSubscriber CreateCatchupSubscriptionSubscribedToAllUsingCheckpoint(
             EventStoreClient eventStoreClient,
             IDispatcher<ResolvedEvent> dispatcher,
             ILogger logger,
             string checkpointFilePath,
             ulong liveEventThreshold = 10)
-            => new EventStoreSubscriber(
+            => new KurrentSubscriber(
                     eventStoreClient,
                     dispatcher,
                     logger,
@@ -273,6 +274,7 @@ namespace CorshamScience.MessageDispatch.EventStore
                     {
                         var filterOptions = new SubscriptionFilterOptions(
                             EventTypeFilter.ExcludeSystemEvents(),
+                            CheckpointInterval,
                             checkpointReached: CheckpointReached);
                         const bool resolveLinkTos = true;
 

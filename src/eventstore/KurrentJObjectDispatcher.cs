@@ -1,8 +1,8 @@
-﻿// <copyright file="EventStoreJObjectDispatcher.cs" company="Corsham Science">
-// Copyright (c) Corsham Science. All rights reserved.
+﻿// <copyright file="KurrentJObjectDispatcher.cs" company="Pharmaxo Scientific">
+// Copyright (c) Pharmaxo Scientific. All rights reserved.
 // </copyright>
 
-namespace CorshamScience.MessageDispatch.EventStore
+namespace PharmaxoScientific.MessageDispatch.EventStore
 {
     using System;
     using System.Text;
@@ -15,16 +15,16 @@ namespace CorshamScience.MessageDispatch.EventStore
     /// A message dispatcher that deserializes messages to a JObject upon dispatch.
     /// </summary>
     // ReSharper disable once UnusedMember.Global
-    public class EventStoreJObjectDispatcher : DeserializingMessageDispatcher<ResolvedEvent, string>
+    public class KurrentJObjectDispatcher : DeserializingMessageDispatcher<ResolvedEvent, string>
     {
 #pragma warning disable SA1648 // inheritdoc should be used with inheriting class
         /// <inheritdoc />
         /// <summary>
-        /// Initializes a new instance of the <see cref="EventStoreJObjectDispatcher" /> class.
+        /// Initializes a new instance of the <see cref="KurrentJObjectDispatcher" /> class.
         /// </summary>
         /// <param name="handlers">Lookups for the handlers which the class can use to process messages.</param>
         // ReSharper disable once UnusedMember.Global
-        public EventStoreJObjectDispatcher(IMessageHandlerLookup<string> handlers)
+        public KurrentJObjectDispatcher(IMessageHandlerLookup<string> handlers)
             : base(handlers)
         {
         }
@@ -44,7 +44,7 @@ namespace CorshamScience.MessageDispatch.EventStore
 
             try
             {
-                deserialized = JObject.Parse(Encoding.UTF8.GetString(rawMessage.Event.Data.Span));
+                deserialized = JObject.Parse(Encoding.UTF8.GetString(rawMessage.Event.Data.Span.ToArray()));
                 return true;
             }
             catch (Exception)

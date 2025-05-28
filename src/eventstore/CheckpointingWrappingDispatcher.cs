@@ -1,8 +1,8 @@
-﻿// <copyright file="CheckpointingWrappingDispatcher.cs" company="Corsham Science">
-// Copyright (c) Corsham Science. All rights reserved.
+﻿// <copyright file="CheckpointingWrappingDispatcher.cs" company="Pharmaxo Scientific">
+// Copyright (c) Pharmaxo Scientific. All rights reserved.
 // </copyright>
 
-namespace CorshamScience.MessageDispatch.EventStore
+namespace PharmaxoScientific.MessageDispatch.EventStore
 {
     using System;
     using System.Text;
@@ -13,7 +13,7 @@ namespace CorshamScience.MessageDispatch.EventStore
     /// <summary>
     /// A wrapping event dispatcher which keeps track of a checkpoint, and whether the dispatched event has been previously processed or not.
     /// </summary>
-    public class CheckpointingWrappingDispatcher : EventStoreAggregateEventDispatcher
+    public class CheckpointingWrappingDispatcher : KurrentAggregateEventDispatcher
     {
         private readonly WriteThroughFileCheckpoint _checkpoint;
         private readonly long _startupCheckpointValue;
@@ -63,7 +63,7 @@ namespace CorshamScience.MessageDispatch.EventStore
 
             try
             {
-                var jsonString = Encoding.UTF8.GetString(rawMessage.Event.Data.Span);
+                var jsonString = Encoding.UTF8.GetString(rawMessage.Event.Data.Span.ToArray());
                 var @event = JObject.Parse(jsonString);
 
                 deserialized = new EventWrapper(@event, previouslyProcessed);

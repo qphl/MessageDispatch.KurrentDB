@@ -1,8 +1,8 @@
-﻿// <copyright file="EventStoreAggregateEventDispatcher.cs" company="Corsham Science">
-// Copyright (c) Corsham Science. All rights reserved.
+﻿// <copyright file="KurrentAggregateEventDispatcher.cs" company="Pharmaxo Scientific">
+// Copyright (c) Pharmaxo Scientific. All rights reserved.
 // </copyright>
 
-namespace CorshamScience.MessageDispatch.EventStore
+namespace PharmaxoScientific.MessageDispatch.EventStore
 {
     using System;
     using System.Collections.Generic;
@@ -17,7 +17,7 @@ namespace CorshamScience.MessageDispatch.EventStore
     /// A deserializing event dispatcher for events produced by CorshamScience.AggregatRepository.
     /// </summary>
     // ReSharper disable once UnusedMember.Global
-    public class EventStoreAggregateEventDispatcher : DeserializingMessageDispatcher<ResolvedEvent, Type>
+    public class KurrentAggregateEventDispatcher : DeserializingMessageDispatcher<ResolvedEvent, Type>
     {
         private readonly JsonSerializerSettings _serializerSettings;
         private readonly Dictionary<string, Type> _typeCache = new Dictionary<string, Type>();
@@ -26,12 +26,12 @@ namespace CorshamScience.MessageDispatch.EventStore
 #pragma warning disable SA1648 // inheritdoc should be used with inheriting class
         /// <inheritdoc />
         /// <summary>
-        /// Initializes a new instance of the <see cref="EventStoreAggregateEventDispatcher" /> class.
+        /// Initializes a new instance of the <see cref="KurrentAggregateEventDispatcher" /> class.
         /// </summary>
         /// <param name="handlers">The handler methods for processing messages with.</param>
         /// <param name="serializerSettings">Determines the settings for the JSON serialization of events.</param>
         // ReSharper disable once UnusedMember.Global
-        public EventStoreAggregateEventDispatcher(
+        public KurrentAggregateEventDispatcher(
             IMessageHandlerLookup<Type> handlers,
             JsonSerializerSettings serializerSettings = null,
             string metadataKey = null)
@@ -55,7 +55,7 @@ namespace CorshamScience.MessageDispatch.EventStore
 
             try
             {
-                IDictionary<string, JToken> metadata = JObject.Parse(Encoding.UTF8.GetString(rawMessage.Event.Metadata.Span));
+                IDictionary<string, JToken> metadata = JObject.Parse(Encoding.UTF8.GetString(rawMessage.Event.Metadata.Span.ToArray()));
 
                 if (!metadata.ContainsKey(_metadataKey))
                 {
@@ -108,7 +108,7 @@ namespace CorshamScience.MessageDispatch.EventStore
 
             try
             {
-                var jsonString = Encoding.UTF8.GetString(rawMessage.Event.Data.Span);
+                var jsonString = Encoding.UTF8.GetString(rawMessage.Event.Data.Span.ToArray());
                 deserialized = JsonConvert.DeserializeObject(jsonString, messageType, _serializerSettings);
                 return deserialized != null;
             }
