@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using CorshamScience.MessageDispatch.Core;
 using KurrentDB.Client;
 using Microsoft.Extensions.Logging;
+using static KurrentDB.Client.KurrentDBClient;
 
 namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
@@ -18,19 +19,14 @@ public class KurrentDbSubscriber
     private const string AllStreamName = "$all";
     private const uint CheckpointInterval = 1;
     private readonly WriteThroughFileCheckpoint _checkpoint;
-    private readonly object _subscriptionLock = new();
     private KurrentDBClient _kurrentDbClient;
     private ulong? _startingPosition;
-    private StreamSubscription _subscription;
     private string _streamName;
     private bool _liveOnly;
-    private bool _isSubscribed;
-    private bool _isSubscriptionLive;
     private bool _subscribeToAll;
     private ulong? _lastProcessedEventPosition;
     private ulong _actualEndOfStreamPosition;
-    private ulong _liveEventThreshold;
-    private ulong _liveThresholdPosition;
+    private CancellationTokenSource _cts;
     private DateTime _lastStreamPositionTimestamp;
     private Func<Task> _setLastPositions;
 
@@ -42,17 +38,15 @@ public class KurrentDbSubscriber
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
-        ulong? startingPosition,
-        ulong liveEventThreshold)
-        => Init(kurrentDbClient, dispatcher, streamName, logger, liveEventThreshold, startingPosition);
+        ulong? startingPosition)
+        => Init(kurrentDbClient, dispatcher, streamName, logger, startingPosition);
 
     private KurrentDbSubscriber(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         ILogger logger,
         string streamName,
-        string checkpointFilePath,
-        ulong liveEventThreshold)
+        string checkpointFilePath)
     {
         _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, -1);
         var initialCheckpointPosition = _checkpoint.Read();
@@ -63,16 +57,15 @@ public class KurrentDbSubscriber
             startingPosition = (ulong)initialCheckpointPosition;
         }
 
-        Init(kurrentDbClient, dispatcher, streamName, logger, liveEventThreshold, startingPosition);
+        Init(kurrentDbClient, dispatcher, streamName, logger, startingPosition);
     }
 
     private KurrentDbSubscriber(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
-        ILogger logger,
-        ulong liveEventThreshold)
-        => Init(kurrentDbClient, dispatcher, streamName, logger, liveEventThreshold, liveOnly: true);
+        ILogger logger)
+        => Init(kurrentDbClient, dispatcher, streamName, logger, liveOnly: true);
 
     /// <summary>
     /// Gets a new catchup progress object.
@@ -82,12 +75,12 @@ public class KurrentDbSubscriber
     {
         get
         {
-            var lastStreamPosition = GetLastPositions().Result;
+            var lastStreamPosition = GetEndOfStreamPosition().Result;
 
             return new CatchupProgress(
                 _lastProcessedEventPosition ?? 0,
                 _streamName,
-                lastStreamPosition.actualEndOfStreamPosition,
+                lastStreamPosition,
                 _startingPosition ?? 0,
                 _subscribeToAll);
         }
@@ -97,29 +90,7 @@ public class KurrentDbSubscriber
     /// Gets a value indicating whether the view model is ready or not.
     /// </summary>
     /// <returns>Returns true if catchup is within threshold.</returns>
-    public bool IsLive
-    {
-        get
-        {
-            // if we aren't subscribed, it doesn't count as live
-            if (!_isSubscribed)
-            {
-                return false;
-            }
-
-            // if we are still subscribed, and we have ever been live, we are still live
-            if (_isSubscribed && _isSubscriptionLive)
-            {
-                return true;
-            }
-
-            var lastStreamPosition = GetLastPositions().Result;
-
-            _isSubscriptionLive = (_liveOnly && _lastProcessedEventPosition is null && _isSubscribed) ||
-                   _lastProcessedEventPosition >= lastStreamPosition.liveThresholdPosition;
-            return _isSubscriptionLive;
-        }
-    }
+    public bool IsLive { get; set; } = false;
 
     /// <summary>
     /// Creates a live KurrentDB subscription.
@@ -128,16 +99,14 @@ public class KurrentDbSubscriber
     /// <param name="dispatcher">Dispatcher.</param>
     /// <param name="streamName">Stream name to push events into.</param>
     /// <param name="logger">Logger.</param>
-    /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateLiveSubscription(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
-        ILogger logger,
-        ulong liveEventThreshold = 10)
-        => new KurrentDbSubscriber(kurrentDbClient, dispatcher, streamName, logger, liveEventThreshold);
+        ILogger logger)
+        => new KurrentDbSubscriber(kurrentDbClient, dispatcher, streamName, logger);
 
     /// <summary>
     /// Creates an KurrentDB catchup subscription using a checkpoint file.
@@ -147,7 +116,6 @@ public class KurrentDbSubscriber
     /// <param name="streamName">Stream name to push events into.</param>
     /// <param name="logger">Logger.</param>
     /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
-    /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionUsingCheckpoint(
@@ -155,9 +123,8 @@ public class KurrentDbSubscriber
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
-        string checkpointFilePath,
-        ulong liveEventThreshold = 10)
-        => new KurrentDbSubscriber(kurrentDbClient, dispatcher, logger, streamName, checkpointFilePath, liveEventThreshold);
+        string checkpointFilePath)
+        => new KurrentDbSubscriber(kurrentDbClient, dispatcher, logger, streamName, checkpointFilePath);
 
     /// <summary>
     /// Creates an KurrentDB catchup subscription from a position.
@@ -167,7 +134,6 @@ public class KurrentDbSubscriber
     /// <param name="streamName">Stream name to push events into.</param>
     /// <param name="logger">Logger.</param>
     /// <param name="startingPosition">Starting Position.</param>
-    /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionFromPosition(
@@ -175,9 +141,8 @@ public class KurrentDbSubscriber
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
-        ulong? startingPosition,
-        ulong liveEventThreshold = 10)
-        => new KurrentDbSubscriber(kurrentDbClient, dispatcher, streamName, logger, startingPosition, liveEventThreshold);
+        ulong? startingPosition)
+        => new KurrentDbSubscriber(kurrentDbClient, dispatcher, streamName, logger, startingPosition);
 
     /// <summary>
     /// Creates an KurrentDB catchup subscription that is subscribed to all from the start.
@@ -185,20 +150,17 @@ public class KurrentDbSubscriber
     /// <param name="kurrentDbClient">KurrentDB connection.</param>
     /// <param name="dispatcher">Dispatcher.</param>
     /// <param name="logger">Logger.</param>
-    /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionSubscribedToAll(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
-        ILogger logger,
-        ulong liveEventThreshold = 10)
+        ILogger logger)
         => new KurrentDbSubscriber(
             kurrentDbClient,
             dispatcher,
             AllStreamName,
-            logger,
-            liveEventThreshold);
+            logger);
 
     /// <summary>
     /// Creates an KurrentDB catchup subscription that is subscribed to all from a position.
@@ -207,22 +169,19 @@ public class KurrentDbSubscriber
     /// <param name="dispatcher">Dispatcher.</param>
     /// <param name="logger">Logger.</param>
     /// <param name="startingPosition">Starting Position.</param>
-    /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionSubscribedToAllFromPosition(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         ILogger logger,
-        ulong? startingPosition,
-        ulong liveEventThreshold = 10)
+        ulong? startingPosition)
         => new KurrentDbSubscriber(
             kurrentDbClient,
             dispatcher,
             AllStreamName,
             logger,
-            startingPosition,
-            liveEventThreshold);
+            startingPosition);
 
     /// <summary>
     /// Creates an KurrentDB catchup subscription subscribed to all using a checkpoint file.
@@ -231,126 +190,118 @@ public class KurrentDbSubscriber
     /// <param name="dispatcher">Dispatcher.</param>
     /// <param name="logger">Logger.</param>
     /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
-    /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionSubscribedToAllUsingCheckpoint(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         ILogger logger,
-        string checkpointFilePath,
-        ulong liveEventThreshold = 10)
+        string checkpointFilePath)
         => new KurrentDbSubscriber(
                 kurrentDbClient,
                 dispatcher,
                 logger,
                 AllStreamName,
-                checkpointFilePath,
-                liveEventThreshold);
+                checkpointFilePath);
 
     /// <summary>
     /// Start the subscriber.
     /// </summary>
     // ReSharper disable once MemberCanBePrivate.Global
-    public void Start()
+    public async void Start()
     {
+        _cts = new CancellationTokenSource();
+
         while (true)
         {
-            _isSubscribed = false;
-
             try
             {
-                Monitor.Enter(_subscriptionLock);
+                var subscription = CreateSubscription();
+                _logger.LogInformation("Subscribed to '{StreamName}'", _streamName);
 
-                KillSubscription();
-
-                // No synchronization context is needed to disable synchronization context.
-                // That enables running asynchronous method not causing deadlocks.
-                // As this is a background process then we don't need to have async context here.
-                using (NoSynchronizationContextScope.Enter())
+                await foreach (var message in subscription.Messages)
                 {
-                    var filterOptions = new SubscriptionFilterOptions(
-                        EventTypeFilter.ExcludeSystemEvents(),
-                        CheckpointInterval,
-                        checkpointReached: CheckpointReached);
-                    const bool resolveLinkTos = true;
-
-                    Task Appeared(
-                        StreamSubscription streamSubscription,
-                        ResolvedEvent e,
-                        CancellationToken cancellationToken) =>
-                        EventAppeared(e);
-
-                    switch (_liveOnly)
+                    switch (message)
                     {
-                        case true when !_subscribeToAll:
-                            _subscription = _kurrentDbClient.SubscribeToStreamAsync(
-                                _streamName,
-                                FromStream.End,
-                                Appeared,
-                                resolveLinkTos,
-                                SubscriptionDropped).Result;
-                            break;
-                        case false when !_subscribeToAll:
-                            {
-                                var fromStream = _startingPosition.HasValue ?
-                                    FromStream.After(new StreamPosition(_startingPosition.Value)) :
-                                    FromStream.Start;
+                        case StreamMessage.Event(var @event):
+                            ProcessEvent(@event);
 
-                                _subscription = _kurrentDbClient.SubscribeToStreamAsync(
-                                    _streamName,
-                                    fromStream,
-                                    Appeared,
-                                    resolveLinkTos,
-                                    SubscriptionDropped).Result;
-                                break;
+                            var lastProcessedEventPosition = GetLastProcessedPosition(@event);
+
+                            if (_liveOnly && _lastProcessedEventPosition is null)
+                            {
+                                _startingPosition = lastProcessedEventPosition;
                             }
 
-                        case true when _subscribeToAll:
-                            _subscription = _kurrentDbClient.SubscribeToAllAsync(
-                                    FromAll.End,
-                                    Appeared,
-                                    resolveLinkTos,
-                                    SubscriptionDropped,
-                                    filterOptions)
-                                .Result;
+                            _lastProcessedEventPosition = lastProcessedEventPosition;
                             break;
-                        case false when _subscribeToAll:
-                            var fromAll = _startingPosition.HasValue ?
-                                FromAll.After(new Position(_startingPosition.Value, _startingPosition.Value)) :
-                                FromAll.Start;
-
-                            _subscription = _kurrentDbClient.SubscribeToAllAsync(
-                                    fromAll,
-                                    Appeared,
-                                    resolveLinkTos,
-                                    SubscriptionDropped,
-                                    filterOptions)
-                                .Result;
+                        case StreamMessage.AllStreamCheckpointReached(var allPosition):
+                            _lastProcessedEventPosition = allPosition.CommitPosition;
+                            WriteCheckpoint((ulong)_lastProcessedEventPosition);
+                            break;
+                        case StreamMessage.CaughtUp:
+                            _logger.LogInformation("Stream caught up: {0}", _streamName);
+                            IsLive = true;
+                            break;
+                        case StreamMessage.FellBehind:
+                            _logger.LogWarning("Stream falling behind: {0}", _streamName);
+                            IsLive = false;
                             break;
                     }
                 }
-
-                _isSubscribed = true;
-                _logger.LogInformation("Subscribed to '{StreamName}'", _streamName);
+            }
+            // User initiated drop, do not resubscribe
+            catch (OperationCanceledException ex)
+            {
+                IsLive = false;
+                _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.Disposed);
+                break;
+            }
+            // User initiated drop, do not resubscribe
+            catch (ObjectDisposedException ex)
+            {
+                IsLive = false;
+                _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.Disposed);
+                break;
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to resubscribe to '{StreamName}' dropped with '{ExceptionMessage}{ExceptionStackTrace}'", _streamName, ex.Message, ex.StackTrace);
-            }
-            finally
-            {
-                Monitor.Exit(_subscriptionLock);
-            }
-
-            if (_isSubscribed)
-            {
-                break;
+                IsLive = false;
+                _logger.LogError(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
+                Console.WriteLine(ex);
             }
 
             // Sleep between reconnections to not flood the database or not kill the CPU with infinite loop
             // Randomness added to reduce the chance of multiple subscriptions trying to reconnect at the same time
-            Thread.Sleep(1000 + new Random((int)DateTime.UtcNow.Ticks).Next(1000));
+            await Task.Delay(1000 + new Random((int)DateTime.UtcNow.Ticks).Next(1000));
+        }
+    }
+
+    private StreamSubscriptionResult CreateSubscription()
+    {
+        var filterOptions = new SubscriptionFilterOptions(EventTypeFilter.ExcludeSystemEvents(), CheckpointInterval);
+
+        const bool resolveLinkTos = true;
+
+        if (_subscribeToAll)
+        {
+            var subscriptionStart = FromAll.End;
+            if (!_liveOnly)
+            {
+                subscriptionStart = _startingPosition.HasValue ? FromAll.After(new Position(_startingPosition.Value, _startingPosition.Value)) : FromAll.Start;
+            }
+
+            return _kurrentDbClient.SubscribeToAll(subscriptionStart, resolveLinkTos, filterOptions, cancellationToken: _cts.Token);
+        }
+        else
+        {
+            var subscriptionStart = FromStream.End;
+            if (!_liveOnly)
+            {
+                subscriptionStart = _startingPosition.HasValue ? FromStream.After(new StreamPosition(_startingPosition.Value)) : FromStream.Start;
+            }
+
+            return _kurrentDbClient.SubscribeToStream(_streamName, FromStream.End, resolveLinkTos, cancellationToken: _cts.Token);
         }
     }
 
@@ -360,10 +311,7 @@ public class KurrentDbSubscriber
     // ReSharper disable once UnusedMember.Global
     public void ShutDown()
     {
-        lock (_subscriptionLock)
-        {
-            KillSubscription();
-        }
+        _cts.Cancel();
     }
 
     private void Init(
@@ -371,7 +319,6 @@ public class KurrentDbSubscriber
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
-        ulong liveEventThreshold,
         ulong? startingPosition = null,
         bool liveOnly = false)
     {
@@ -383,8 +330,6 @@ public class KurrentDbSubscriber
         _kurrentDbClient = connection;
         _liveOnly = liveOnly;
         _subscribeToAll = streamName == AllStreamName;
-        _liveEventThreshold = liveEventThreshold;
-        _liveThresholdPosition = StreamPosition.End;
         _lastStreamPositionTimestamp = DateTime.MinValue;
 
         _setLastPositions = _subscribeToAll
@@ -393,10 +338,10 @@ public class KurrentDbSubscriber
                 var eventsWithinThreshold = await _kurrentDbClient.ReadAllAsync(
                         Direction.Backwards,
                         Position.End,
-                        maxCount: (long)_liveEventThreshold)
+                        maxCount: 1,
+                        resolveLinkTos: false)
                     .ToListAsync();
 
-                _liveThresholdPosition = eventsWithinThreshold.Last().OriginalEvent.Position.CommitPosition;
                 _actualEndOfStreamPosition = eventsWithinThreshold.First().OriginalEvent.Position.CommitPosition;
             }
         : async () =>
@@ -405,54 +350,12 @@ public class KurrentDbSubscriber
                     Direction.Backwards,
                     _streamName,
                     StreamPosition.End,
-                    maxCount: (long)_liveEventThreshold,
+                    maxCount: 1,
                     resolveLinkTos: false)
                 .ToListAsync();
 
-            _liveThresholdPosition = eventsWithinThreshold.Last().OriginalEventNumber.ToUInt64();
             _actualEndOfStreamPosition = eventsWithinThreshold.First().OriginalEventNumber.ToUInt64();
         };
-    }
-
-    private void SubscriptionDropped(StreamSubscription streamSubscription, SubscriptionDroppedReason subscriptionDropReason, Exception ex)
-    {
-        if (ex != null)
-        {
-            _logger.LogInformation(ex, "Event Store subscription dropped {0}", subscriptionDropReason.ToString());
-        }
-        else
-        {
-            _logger.LogInformation("Event Store subscription dropped {0}", subscriptionDropReason.ToString());
-        }
-
-        if (subscriptionDropReason == SubscriptionDroppedReason.Disposed)
-        {
-            _logger.LogInformation("Not attempting to restart subscription was disposed. Subscription is dead.");
-            return;
-        }
-
-        _isSubscribed = false;
-
-        // if the subscription drops, set its 'liveness' to false
-        _isSubscriptionLive = false;
-        _startingPosition = _lastProcessedEventPosition;
-        Start();
-    }
-
-    private Task EventAppeared(ResolvedEvent resolvedEvent)
-    {
-        ProcessEvent(resolvedEvent);
-
-        var lastProcessedEventPosition = GetLastProcessedPosition(resolvedEvent);
-
-        if (_liveOnly && _lastProcessedEventPosition is null)
-        {
-            _startingPosition = lastProcessedEventPosition;
-        }
-
-        _lastProcessedEventPosition = lastProcessedEventPosition;
-
-        return Task.CompletedTask;
     }
 
     private void ProcessEvent(ResolvedEvent resolvedEvent)
@@ -510,38 +413,16 @@ public class KurrentDbSubscriber
         _logger.LogTrace("Checkpoint written. Checkpoint number {CheckpointNumber}", checkpointNumber);
     }
 
-    private async Task<(ulong liveThresholdPosition, ulong actualEndOfStreamPosition)> GetLastPositions()
+    private async Task<ulong> GetEndOfStreamPosition()
     {
         var streamPositionIsStale = (DateTime.UtcNow - _lastStreamPositionTimestamp) > TimeSpan.FromSeconds(10);
 
-        if (_isSubscribed && streamPositionIsStale)
+        if (!_cts.Token.IsCancellationRequested && streamPositionIsStale)
         {
             await _setLastPositions();
             _lastStreamPositionTimestamp = DateTime.UtcNow;
         }
 
-        return (_liveThresholdPosition, _actualEndOfStreamPosition);
-    }
-
-    private void KillSubscription()
-    {
-        if (_subscription != null)
-        {
-            _subscription.Dispose();
-            _subscription = null;
-        }
-
-        _isSubscribed = false;
-    }
-
-    private Task CheckpointReached(
-        StreamSubscription streamSubscription,
-        Position position,
-        CancellationToken cancellationToken)
-    {
-        _lastProcessedEventPosition = position.CommitPosition;
-        WriteCheckpoint((ulong)_lastProcessedEventPosition);
-
-        return Task.CompletedTask;
+        return _actualEndOfStreamPosition;
     }
 }
