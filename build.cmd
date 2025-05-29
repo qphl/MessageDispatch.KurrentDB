@@ -9,7 +9,7 @@ SET TAG=%TAG:tags/=%
 
 dotnet restore .\src\MessageDispatch.KurrentDB.sln -PackagesDirectory .\src\packages -Verbosity detailed
 
-dotnet format .\src\MessageDispatch.KurrentBD.sln --severity warn --verify-no-changes -v diag
+dotnet format .\src\MessageDispatch.KurrentDB.sln --severity warn --verify-no-changes -v diag
 IF %errorlevel% neq 0 EXIT /B %errorlevel%
 
 dotnet pack .\src\MessageDispatch.KurrentDB\MessageDispatch.KurrentDB.csproj -o .\dist -p:Version="%VERSION%" -p:PackageVersion="%VERSION%" -p:Tag="%TAG%" -c Release
