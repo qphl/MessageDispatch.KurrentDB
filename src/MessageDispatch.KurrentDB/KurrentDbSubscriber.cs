@@ -19,7 +19,7 @@ public class KurrentDbSubscriber
     private const uint CheckpointInterval = 1;
     private readonly WriteThroughFileCheckpoint _checkpoint;
     private readonly object _subscriptionLock = new();
-    private KurrentDBClient _eventStoreClient;
+    private KurrentDBClient _kurrentDbClient;
     private ulong? _startingPosition;
     private StreamSubscription _subscription;
     private string _streamName;
@@ -38,16 +38,16 @@ public class KurrentDbSubscriber
     private ILogger _logger;
 
     private KurrentDbSubscriber(
-        KurrentDBClient eventStoreClient,
+        KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
         ulong? startingPosition,
         ulong liveEventThreshold)
-        => Init(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold, startingPosition);
+        => Init(kurrentDbClient, dispatcher, streamName, logger, liveEventThreshold, startingPosition);
 
     private KurrentDbSubscriber(
-        KurrentDBClient eventStoreClient,
+        KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         ILogger logger,
         string streamName,
@@ -63,16 +63,16 @@ public class KurrentDbSubscriber
             startingPosition = (ulong)initialCheckpointPosition;
         }
 
-        Init(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold, startingPosition);
+        Init(kurrentDbClient, dispatcher, streamName, logger, liveEventThreshold, startingPosition);
     }
 
     private KurrentDbSubscriber(
-        KurrentDBClient eventStoreClient,
+        KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
         ulong liveEventThreshold)
-        => Init(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold, liveOnly: true);
+        => Init(kurrentDbClient, dispatcher, streamName, logger, liveEventThreshold, liveOnly: true);
 
     /// <summary>
     /// Gets a new catchup progress object.
@@ -122,102 +122,102 @@ public class KurrentDbSubscriber
     }
 
     /// <summary>
-    /// Creates a live eventstore subscription.
+    /// Creates a live KurrentDB subscription.
     /// </summary>
-    /// <param name="eventStoreClient">Eventstore connection.</param>
+    /// <param name="kurrentDbClient">KurrentDB connection.</param>
     /// <param name="dispatcher">Dispatcher.</param>
     /// <param name="streamName">Stream name to push events into.</param>
     /// <param name="logger">Logger.</param>
     /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
-    /// <returns>A new EventStoreSubscriber object.</returns>
+    /// <returns>A new KurrentDbSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateLiveSubscription(
-        KurrentDBClient eventStoreClient,
+        KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
         ulong liveEventThreshold = 10)
-        => new KurrentDbSubscriber(eventStoreClient, dispatcher, streamName, logger, liveEventThreshold);
+        => new KurrentDbSubscriber(kurrentDbClient, dispatcher, streamName, logger, liveEventThreshold);
 
     /// <summary>
-    /// Creates an eventstore catchup subscription using a checkpoint file.
+    /// Creates an KurrentDB catchup subscription using a checkpoint file.
     /// </summary>
-    /// <param name="eventStoreClient">Eventstore connection.</param>
+    /// <param name="kurrentDbClient">KurrentDB connection.</param>
     /// <param name="dispatcher">Dispatcher.</param>
     /// <param name="streamName">Stream name to push events into.</param>
     /// <param name="logger">Logger.</param>
     /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
     /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
-    /// <returns>A new EventStoreSubscriber object.</returns>
+    /// <returns>A new KurrentDbSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionUsingCheckpoint(
-        KurrentDBClient eventStoreClient,
+        KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
         string checkpointFilePath,
         ulong liveEventThreshold = 10)
-        => new KurrentDbSubscriber(eventStoreClient, dispatcher, logger, streamName, checkpointFilePath, liveEventThreshold);
+        => new KurrentDbSubscriber(kurrentDbClient, dispatcher, logger, streamName, checkpointFilePath, liveEventThreshold);
 
     /// <summary>
-    /// Creates an eventstore catchup subscription from a position.
+    /// Creates an KurrentDB catchup subscription from a position.
     /// </summary>
-    /// <param name="eventStoreClient">Eventstore connection.</param>
+    /// <param name="kurrentDbClient">KurrentDB connection.</param>
     /// <param name="dispatcher">Dispatcher.</param>
     /// <param name="streamName">Stream name to push events into.</param>
     /// <param name="logger">Logger.</param>
     /// <param name="startingPosition">Starting Position.</param>
     /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
-    /// <returns>A new EventStoreSubscriber object.</returns>
+    /// <returns>A new KurrentDbSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionFromPosition(
-        KurrentDBClient eventStoreClient,
+        KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
         ulong? startingPosition,
         ulong liveEventThreshold = 10)
-        => new KurrentDbSubscriber(eventStoreClient, dispatcher, streamName, logger, startingPosition, liveEventThreshold);
+        => new KurrentDbSubscriber(kurrentDbClient, dispatcher, streamName, logger, startingPosition, liveEventThreshold);
 
     /// <summary>
-    /// Creates an eventstore catchup subscription that is subscribed to all from the start.
+    /// Creates an KurrentDB catchup subscription that is subscribed to all from the start.
     /// </summary>
-    /// <param name="eventStoreClient">Eventstore connection.</param>
+    /// <param name="kurrentDbClient">KurrentDB connection.</param>
     /// <param name="dispatcher">Dispatcher.</param>
     /// <param name="logger">Logger.</param>
     /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
-    /// <returns>A new EventStoreSubscriber object.</returns>
+    /// <returns>A new KurrentDbSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionSubscribedToAll(
-        KurrentDBClient eventStoreClient,
+        KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         ILogger logger,
         ulong liveEventThreshold = 10)
         => new KurrentDbSubscriber(
-            eventStoreClient,
+            kurrentDbClient,
             dispatcher,
             AllStreamName,
             logger,
             liveEventThreshold);
 
     /// <summary>
-    /// Creates an eventstore catchup subscription that is subscribed to all from a position.
+    /// Creates an KurrentDB catchup subscription that is subscribed to all from a position.
     /// </summary>
-    /// <param name="eventStoreClient">Eventstore connection.</param>
+    /// <param name="kurrentDbClient">KurrentDB connection.</param>
     /// <param name="dispatcher">Dispatcher.</param>
     /// <param name="logger">Logger.</param>
     /// <param name="startingPosition">Starting Position.</param>
     /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
-    /// <returns>A new EventStoreSubscriber object.</returns>
+    /// <returns>A new KurrentDbSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionSubscribedToAllFromPosition(
-        KurrentDBClient eventStoreClient,
+        KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         ILogger logger,
         ulong? startingPosition,
         ulong liveEventThreshold = 10)
         => new KurrentDbSubscriber(
-            eventStoreClient,
+            kurrentDbClient,
             dispatcher,
             AllStreamName,
             logger,
@@ -225,23 +225,23 @@ public class KurrentDbSubscriber
             liveEventThreshold);
 
     /// <summary>
-    /// Creates an eventstore catchup subscription subscribed to all using a checkpoint file.
+    /// Creates an KurrentDB catchup subscription subscribed to all using a checkpoint file.
     /// </summary>
-    /// <param name="eventStoreClient">Eventstore connection.</param>
+    /// <param name="kurrentDbClient">KurrentDB connection.</param>
     /// <param name="dispatcher">Dispatcher.</param>
     /// <param name="logger">Logger.</param>
     /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
     /// <param name="liveEventThreshold">Proximity to end of stream before subscription considered live.</param>
-    /// <returns>A new EventStoreSubscriber object.</returns>
+    /// <returns>A new KurrentDbSubscriber object.</returns>
     // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionSubscribedToAllUsingCheckpoint(
-        KurrentDBClient eventStoreClient,
+        KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         ILogger logger,
         string checkpointFilePath,
         ulong liveEventThreshold = 10)
         => new KurrentDbSubscriber(
-                eventStoreClient,
+                kurrentDbClient,
                 dispatcher,
                 logger,
                 AllStreamName,
@@ -284,7 +284,7 @@ public class KurrentDbSubscriber
                     switch (_liveOnly)
                     {
                         case true when !_subscribeToAll:
-                            _subscription = _eventStoreClient.SubscribeToStreamAsync(
+                            _subscription = _kurrentDbClient.SubscribeToStreamAsync(
                                 _streamName,
                                 FromStream.End,
                                 Appeared,
@@ -297,7 +297,7 @@ public class KurrentDbSubscriber
                                     FromStream.After(new StreamPosition(_startingPosition.Value)) :
                                     FromStream.Start;
 
-                                _subscription = _eventStoreClient.SubscribeToStreamAsync(
+                                _subscription = _kurrentDbClient.SubscribeToStreamAsync(
                                     _streamName,
                                     fromStream,
                                     Appeared,
@@ -307,7 +307,7 @@ public class KurrentDbSubscriber
                             }
 
                         case true when _subscribeToAll:
-                            _subscription = _eventStoreClient.SubscribeToAllAsync(
+                            _subscription = _kurrentDbClient.SubscribeToAllAsync(
                                     FromAll.End,
                                     Appeared,
                                     resolveLinkTos,
@@ -320,7 +320,7 @@ public class KurrentDbSubscriber
                                 FromAll.After(new Position(_startingPosition.Value, _startingPosition.Value)) :
                                 FromAll.Start;
 
-                            _subscription = _eventStoreClient.SubscribeToAllAsync(
+                            _subscription = _kurrentDbClient.SubscribeToAllAsync(
                                     fromAll,
                                     Appeared,
                                     resolveLinkTos,
@@ -380,7 +380,7 @@ public class KurrentDbSubscriber
         _lastProcessedEventPosition = startingPosition;
         _dispatcher = dispatcher;
         _streamName = streamName;
-        _eventStoreClient = connection;
+        _kurrentDbClient = connection;
         _liveOnly = liveOnly;
         _subscribeToAll = streamName == AllStreamName;
         _liveEventThreshold = liveEventThreshold;
@@ -390,7 +390,7 @@ public class KurrentDbSubscriber
         _setLastPositions = _subscribeToAll
             ? async () =>
             {
-                var eventsWithinThreshold = await _eventStoreClient.ReadAllAsync(
+                var eventsWithinThreshold = await _kurrentDbClient.ReadAllAsync(
                         Direction.Backwards,
                         Position.End,
                         maxCount: (long)_liveEventThreshold)
@@ -401,7 +401,7 @@ public class KurrentDbSubscriber
             }
         : async () =>
         {
-            var eventsWithinThreshold = await _eventStoreClient.ReadStreamAsync(
+            var eventsWithinThreshold = await _kurrentDbClient.ReadStreamAsync(
                     Direction.Backwards,
                     _streamName,
                     StreamPosition.End,
@@ -414,7 +414,7 @@ public class KurrentDbSubscriber
         };
     }
 
-    private void SubscriptionDropped(StreamSubscription eventStoreCatchUpSubscription, SubscriptionDroppedReason subscriptionDropReason, Exception ex)
+    private void SubscriptionDropped(StreamSubscription streamSubscription, SubscriptionDroppedReason subscriptionDropReason, Exception ex)
     {
         if (ex != null)
         {
@@ -470,7 +470,7 @@ public class KurrentDbSubscriber
 
             WriteCheckpoint(checkpointNumber);
             _logger.LogTrace(
-                "Event dispatched from Eventstore subscriber ({0}/{1})",
+                "Event dispatched from subscriber ({0}/{1})",
                 resolvedEvent.Event.EventStreamId,
                 resolvedEvent.Event.EventNumber);
         }
@@ -478,7 +478,7 @@ public class KurrentDbSubscriber
         {
             _logger.LogError(
                 ex,
-                "Error dispatching event from Event Store subscriber ({0}/{1})",
+                "Error dispatching event from subscriber ({0}/{1})",
                 resolvedEvent.Event.EventStreamId,
                 resolvedEvent.Event.EventNumber);
         }
