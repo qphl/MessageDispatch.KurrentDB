@@ -135,6 +135,67 @@ public class SubscriberTests
         });
     }
 
+    [Test]
+    public async Task CreateCatchupSubscriptionSubscribedToAll_GivenNoEventsInStreamGivenNewEvents_DispatchesEventsAndBecomesLive()
+    {
+        var subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionSubscribedToAll(
+            _kurrentDbClient,
+            _dispatcher,
+            new NullLogger<KurrentDbSubscriber>());
+
+        var event1 = SimpleEvent.Create();
+        var event2 = SimpleEvent.Create();
+        var event3 = SimpleEvent.Create();
+
+        List<SimpleEvent> events = [event1, event2, event3];
+
+        subscriber.Start();
+
+        await AppendEventsToStreamAsync(event1, event2, event3);
+        await _dispatcher.WaitForEventsToBeDispatched(event1, event2, event3);
+
+        var deserializedDispatchedEvents =
+            _dispatcher.DispatchedEvents.Select(DeserializeEventData<SimpleEvent>);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserializedDispatchedEvents, Is.EqualTo(events));
+            Assert.That(subscriber.IsLive);
+        });
+    }
+
+    [Test]
+    public async Task CreateCatchupSubscriptionFromPosition_GivenEventsInStreamAndStartPosition_DispatchesEventsFromPositionAndBecomesLive()
+    {
+        var subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionFromPosition(
+            _kurrentDbClient,
+            _dispatcher,
+            StreamName,
+            new NullLogger<KurrentDbSubscriber>(),
+            1);
+
+        var event1 = SimpleEvent.Create();
+        var event2 = SimpleEvent.Create();
+        var event3 = SimpleEvent.Create();
+
+        List<SimpleEvent> events = [event3];
+
+        await AppendEventsToStreamAsync(event1, event2, event3);
+
+        subscriber.Start();
+
+        await _dispatcher.WaitForEventsToBeDispatched(event3);
+
+        var deserializedDispatchedEvents =
+            _dispatcher.DispatchedEvents.Select(DeserializeEventData<SimpleEvent>);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserializedDispatchedEvents, Is.EqualTo(events));
+            Assert.That(subscriber.IsLive);
+        });
+    }
+
     // ReSharper disable once NotAccessedPositionalProperty.Local
     private record SimpleEvent(Guid Id)
     {
