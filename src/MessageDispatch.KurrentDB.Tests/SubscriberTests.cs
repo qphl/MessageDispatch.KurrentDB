@@ -14,6 +14,8 @@ public class SubscriberTests
 {
     private const string StreamName = "stream1";
     private string _connectionString;
+    private KurrentDBClient _kurrentDbClient;
+    private AwaitableDispatcherSpy _dispatcher;
 
     [SetUp]
     public async Task Setup()
@@ -30,17 +32,20 @@ public class SubscriberTests
 
         var mappedHostPort = eventStoreContainer.GetMappedPublicPort(eventStoreHostPort);
         _connectionString = $"esdb://admin:changeit@localhost:{mappedHostPort}?tls=false";
+
+        _kurrentDbClient = new KurrentDBClient(KurrentDBClientSettings.Create(_connectionString));
+        _dispatcher = new AwaitableDispatcherSpy();
     }
+
+    [TearDown]
+    public async Task TearDown() => await _kurrentDbClient.DisposeAsync();
 
     [Test]
     public async Task CreateLiveSubscription_GivenNoEventsInStreamWhenNewEventsAdded_DispatchesEventsAndBecomesLive()
     {
-        var kurrentDbClient = new KurrentDBClient(KurrentDBClientSettings.Create(_connectionString));
-
-        var dispatcher = new AwaitableDispatcherSpy();
         var subscriber = KurrentDbSubscriber.CreateLiveSubscription(
-            kurrentDbClient,
-            dispatcher,
+            _kurrentDbClient,
+            _dispatcher,
             StreamName,
             new NullLogger<KurrentDbSubscriber>());
 
@@ -53,10 +58,75 @@ public class SubscriberTests
         List<SimpleEvent> events = [event1, event2, event3];
 
         await AppendEventsToStreamAsync(event1, event2, event3);
-        await dispatcher.WaitForEventsToBeDispatched(event1, event2, event3);
+        await _dispatcher.WaitForEventsToBeDispatched(event1, event2, event3);
 
         var deserializedDispatchedEvents =
-            dispatcher.DispatchedEvents.Select(DeserializeEventData<SimpleEvent>);
+            _dispatcher.DispatchedEvents.Select(DeserializeEventData<SimpleEvent>);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserializedDispatchedEvents, Is.EqualTo(events));
+            Assert.That(subscriber.IsLive);
+        });
+    }
+
+    [Test]
+    public async Task CreateLiveSubscription_GivenExistingEventsInStreamWhenNewEventsAdded_DispatchesNewEventsAndBecomesLive()
+    {
+        var subscriber = KurrentDbSubscriber.CreateLiveSubscription(
+            _kurrentDbClient,
+            _dispatcher,
+            StreamName,
+            new NullLogger<KurrentDbSubscriber>());
+
+        var oldEvent1 = SimpleEvent.Create();
+        var oldEvent2 = SimpleEvent.Create();
+
+        await AppendEventsToStreamAsync(oldEvent1, oldEvent2);
+
+        subscriber.Start();
+
+        var event1 = SimpleEvent.Create();
+        var event2 = SimpleEvent.Create();
+        var event3 = SimpleEvent.Create();
+
+        List<SimpleEvent> events = [event1, event2, event3];
+
+        await AppendEventsToStreamAsync(event1, event2, event3);
+        await _dispatcher.WaitForEventsToBeDispatched(event1, event2, event3);
+
+        var deserializedDispatchedEvents =
+            _dispatcher.DispatchedEvents.Select(DeserializeEventData<SimpleEvent>);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserializedDispatchedEvents, Is.EqualTo(events));
+            Assert.That(subscriber.IsLive);
+        });
+    }
+
+    [Test]
+    public async Task CreateCatchupSubscriptionSubscribedToAll_GivenEventsInStream_DispatchesEventsAndBecomesLive()
+    {
+        var subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionSubscribedToAll(
+            _kurrentDbClient,
+            _dispatcher,
+            new NullLogger<KurrentDbSubscriber>());
+
+        var event1 = SimpleEvent.Create();
+        var event2 = SimpleEvent.Create();
+        var event3 = SimpleEvent.Create();
+
+        List<SimpleEvent> events = [event1, event2, event3];
+
+        await AppendEventsToStreamAsync(event1, event2, event3);
+
+        subscriber.Start();
+
+        await _dispatcher.WaitForEventsToBeDispatched(event1, event2, event3);
+
+        var deserializedDispatchedEvents =
+            _dispatcher.DispatchedEvents.Select(DeserializeEventData<SimpleEvent>);
 
         Assert.Multiple(() =>
         {
