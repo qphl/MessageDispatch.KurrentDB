@@ -10,19 +10,20 @@ public interface IKurrentDbSubscriber
     /// <summary>
     /// Gets a new catchup progress object.
     /// </summary>
-// ReSharper disable once UnusedMember.Global
-CatchupProgress CatchupProgress { get; }
+    // ReSharper disable once UnusedMember.Global
+    CatchupProgress CatchupProgress { get; }
 
     /// <summary>
     /// Gets a value indicating whether the view model is ready or not.
     /// </summary>
     /// <returns>Returns true if catchup is within threshold.</returns>
+    // ReSharper disable once UnusedMemberInSuper.Global
     bool IsLive { get; set; }
 
     /// <summary>
     /// Start the subscriber.
     /// </summary>
-    // ReSharper disable once MemberCanBePrivate.Global
+    // ReSharper disable once UnusedMember.Global
     void Start();
 
     /// <summary>
