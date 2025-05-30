@@ -99,7 +99,6 @@ public class KurrentDbSubscriber
     /// <param name="streamName">Stream name to push events into.</param>
     /// <param name="logger">Logger.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
-    // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateLiveSubscription(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
@@ -134,7 +133,6 @@ public class KurrentDbSubscriber
     /// <param name="logger">Logger.</param>
     /// <param name="startingPosition">Starting Position.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
-    // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionFromPosition(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
@@ -150,7 +148,6 @@ public class KurrentDbSubscriber
     /// <param name="dispatcher">Dispatcher.</param>
     /// <param name="logger">Logger.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
-    // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionSubscribedToAll(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
@@ -206,7 +203,6 @@ public class KurrentDbSubscriber
     /// <summary>
     /// Start the subscriber.
     /// </summary>
-    // ReSharper disable once MemberCanBePrivate.Global
     public async void Start()
     {
         _cts = new CancellationTokenSource();
@@ -307,7 +303,6 @@ public class KurrentDbSubscriber
     /// <summary>
     /// Shut down the subscription.
     /// </summary>
-    // ReSharper disable once UnusedMember.Global
     public void ShutDown() => _cts.Cancel();
 
     private void Init(

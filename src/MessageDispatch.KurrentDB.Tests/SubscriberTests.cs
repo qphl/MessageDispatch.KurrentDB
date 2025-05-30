@@ -18,6 +18,7 @@ public class SubscriberTests
     private string _connectionString;
     private KurrentDBClient _kurrentDbClient;
     private AwaitableDispatcherSpy _dispatcher;
+    private KurrentDbSubscriber? _subscriber;
 
     [SetUp]
     public async Task Setup()
@@ -40,18 +41,22 @@ public class SubscriberTests
     }
 
     [TearDown]
-    public async Task TearDown() => await _kurrentDbClient.DisposeAsync();
+    public async Task TearDown()
+    {
+        await _kurrentDbClient.DisposeAsync();
+        _subscriber?.ShutDown();
+    }
 
     [Test]
     public async Task CreateLiveSubscription_GivenNoEventsInStreamWhenNewEventsAdded_DispatchesEventsAndBecomesLive()
     {
-        var subscriber = KurrentDbSubscriber.CreateLiveSubscription(
+        _subscriber = KurrentDbSubscriber.CreateLiveSubscription(
             _kurrentDbClient,
             _dispatcher,
             StreamName,
             new NullLogger<KurrentDbSubscriber>());
 
-        subscriber.Start();
+        _subscriber.Start();
 
         var event1 = SimpleEvent.Create();
         var event2 = SimpleEvent.Create();
@@ -68,14 +73,14 @@ public class SubscriberTests
         Assert.Multiple(() =>
         {
             Assert.That(deserializedDispatchedEvents, Is.EqualTo(events));
-            Assert.That(subscriber.IsLive);
+            Assert.That(_subscriber.IsLive);
         });
     }
 
     [Test]
     public async Task CreateLiveSubscription_GivenExistingEventsInStreamWhenNewEventsAdded_DispatchesNewEventsAndBecomesLive()
     {
-        var subscriber = KurrentDbSubscriber.CreateLiveSubscription(
+        _subscriber = KurrentDbSubscriber.CreateLiveSubscription(
             _kurrentDbClient,
             _dispatcher,
             StreamName,
@@ -86,7 +91,7 @@ public class SubscriberTests
 
         await AppendEventsToStreamAsync(oldEvent1, oldEvent2);
 
-        subscriber.Start();
+        _subscriber.Start();
 
         var event1 = SimpleEvent.Create();
         var event2 = SimpleEvent.Create();
@@ -103,14 +108,14 @@ public class SubscriberTests
         Assert.Multiple(() =>
         {
             Assert.That(deserializedDispatchedEvents, Is.EqualTo(events));
-            Assert.That(subscriber.IsLive);
+            Assert.That(_subscriber.IsLive);
         });
     }
 
     [Test]
     public async Task CreateCatchupSubscriptionSubscribedToAll_GivenEventsInStream_DispatchesEventsAndBecomesLive()
     {
-        var subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionSubscribedToAll(
+        _subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionSubscribedToAll(
             _kurrentDbClient,
             _dispatcher,
             new NullLogger<KurrentDbSubscriber>());
@@ -123,7 +128,7 @@ public class SubscriberTests
 
         await AppendEventsToStreamAsync(event1, event2, event3);
 
-        subscriber.Start();
+        _subscriber.Start();
 
         await _dispatcher.WaitForEventsToBeDispatched(event1, event2, event3);
 
@@ -133,14 +138,14 @@ public class SubscriberTests
         Assert.Multiple(() =>
         {
             Assert.That(deserializedDispatchedEvents, Is.EqualTo(events));
-            Assert.That(subscriber.IsLive);
+            Assert.That(_subscriber.IsLive);
         });
     }
 
     [Test]
     public async Task CreateCatchupSubscriptionSubscribedToAll_GivenNoEventsInStreamGivenNewEvents_DispatchesEventsAndBecomesLive()
     {
-        var subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionSubscribedToAll(
+        _subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionSubscribedToAll(
             _kurrentDbClient,
             _dispatcher,
             new NullLogger<KurrentDbSubscriber>());
@@ -151,7 +156,7 @@ public class SubscriberTests
 
         List<SimpleEvent> events = [event1, event2, event3];
 
-        subscriber.Start();
+        _subscriber.Start();
 
         await AppendEventsToStreamAsync(event1, event2, event3);
         await _dispatcher.WaitForEventsToBeDispatched(event1, event2, event3);
@@ -162,14 +167,14 @@ public class SubscriberTests
         Assert.Multiple(() =>
         {
             Assert.That(deserializedDispatchedEvents, Is.EqualTo(events));
-            Assert.That(subscriber.IsLive);
+            Assert.That(_subscriber.IsLive);
         });
     }
 
     [Test]
     public async Task CreateCatchupSubscriptionFromPosition_GivenEventsInStreamAndStartPosition_DispatchesEventsFromPositionAndBecomesLive()
     {
-        var subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionFromPosition(
+        _subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionFromPosition(
             _kurrentDbClient,
             _dispatcher,
             StreamName,
@@ -184,7 +189,7 @@ public class SubscriberTests
 
         await AppendEventsToStreamAsync(event1, event2, event3);
 
-        subscriber.Start();
+        _subscriber.Start();
 
         await _dispatcher.WaitForEventsToBeDispatched(event3);
 
@@ -194,7 +199,7 @@ public class SubscriberTests
         Assert.Multiple(() =>
         {
             Assert.That(deserializedDispatchedEvents, Is.EqualTo(events));
-            Assert.That(subscriber.IsLive);
+            Assert.That(_subscriber.IsLive);
         });
     }
 
