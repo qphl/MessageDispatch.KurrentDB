@@ -1,3 +1,5 @@
+﻿// Copyright (c) Pharmaxo. All rights reserved.
+
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
