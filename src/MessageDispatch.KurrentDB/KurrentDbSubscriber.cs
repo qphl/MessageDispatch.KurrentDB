@@ -33,6 +33,11 @@ public class KurrentDbSubscriber
     private IDispatcher<ResolvedEvent> _dispatcher;
     private ILogger _logger;
 
+    /// <summary>
+    /// Gets a value indicating whether the view model is ready or not.
+    /// </summary>
+    public bool IsLive;
+
     private KurrentDbSubscriber(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
@@ -85,12 +90,6 @@ public class KurrentDbSubscriber
                 _subscribeToAll);
         }
     }
-
-    /// <summary>
-    /// Gets a value indicating whether the view model is ready or not.
-    /// </summary>
-    /// <returns>Returns true if catchup is within threshold.</returns>
-    public bool IsLive { get; set; } = false;
 
     /// <summary>
     /// Creates a live KurrentDB subscription.
@@ -279,7 +278,7 @@ public class KurrentDbSubscriber
 
     private StreamSubscriptionResult CreateSubscription()
     {
-        var filterOptions = new SubscriptionFilterOptions(EventTypeFilter.ExcludeSystemEvents(), CheckpointInterval);
+        var filterOptions = new SubscriptionFilterOptions(EventTypeFilter.ExcludeSystemEvents(), checkpointInterval: CheckpointInterval);
 
         const bool resolveLinkTos = true;
 
@@ -301,7 +300,7 @@ public class KurrentDbSubscriber
                 subscriptionStart = _startingPosition.HasValue ? FromStream.After(new StreamPosition(_startingPosition.Value)) : FromStream.Start;
             }
 
-            return _kurrentDbClient.SubscribeToStream(_streamName, FromStream.End, resolveLinkTos, cancellationToken: _cts.Token);
+            return _kurrentDbClient.SubscribeToStream(_streamName, subscriptionStart, resolveLinkTos, cancellationToken: _cts.Token);
         }
     }
 
@@ -309,10 +308,7 @@ public class KurrentDbSubscriber
     /// Shut down the subscription.
     /// </summary>
     // ReSharper disable once UnusedMember.Global
-    public void ShutDown()
-    {
-        _cts.Cancel();
-    }
+    public void ShutDown() => _cts.Cancel();
 
     private void Init(
         KurrentDBClient connection,
@@ -360,7 +356,7 @@ public class KurrentDbSubscriber
 
     private void ProcessEvent(ResolvedEvent resolvedEvent)
     {
-        if (resolvedEvent.Event == null || resolvedEvent.Event.EventType.StartsWith("$"))
+        if (resolvedEvent.Event.EventType.StartsWith("$"))
         {
             return;
         }
@@ -387,12 +383,10 @@ public class KurrentDbSubscriber
         }
     }
 
-    private ulong GetLastProcessedPosition(ResolvedEvent resolvedEvent)
-    {
-        return _subscribeToAll
+    private ulong GetLastProcessedPosition(ResolvedEvent resolvedEvent) =>
+        _subscribeToAll
             ? resolvedEvent.OriginalEvent.Position.CommitPosition
             : resolvedEvent.OriginalEventNumber.ToUInt64();
-    }
 
     private void WriteCheckpoint(ulong checkpointNumber)
     {
