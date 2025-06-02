@@ -308,7 +308,6 @@ public class SubscriberTests
         });
     }
 
-
     [Test]
     public async Task CreateCatchupSubscriptionUsingCheckpoint_GivenEventsInStreamAndNoExistingCheckpointFile_DispatchesAllEventsAndBecomesLive()
     {
