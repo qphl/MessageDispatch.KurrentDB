@@ -115,7 +115,6 @@ public class KurrentDbSubscriber
     /// <param name="logger">Logger.</param>
     /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
-    // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionUsingCheckpoint(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
@@ -187,7 +186,6 @@ public class KurrentDbSubscriber
     /// <param name="logger">Logger.</param>
     /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
-    // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionSubscribedToAllUsingCheckpoint(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,

@@ -236,6 +236,154 @@ public class SubscriberTests
         });
     }
 
+    [Test]
+    public async Task CreateCatchupSubscriptionSubscribedToAllUsingCheckpoint_GivenEventsInStreamAndNoExistingCheckpointFile_DispatchesAllEventsAndBecomesLive()
+    {
+        var event1 = SimpleEvent.Create();
+        var event2 = SimpleEvent.Create();
+        var event3 = SimpleEvent.Create();
+
+        List<SimpleEvent> eventsExpectedToBeDispatched = [event1, event2, event3];
+
+        await AppendEventsToStreamAsync(event1);
+        await AppendEventsToStreamAsync(event2);
+        await AppendEventsToStreamAsync(event3);
+
+        var checkpointFileName = Path.GetRandomFileName();
+
+        _subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionSubscribedToAllUsingCheckpoint(
+            _kurrentDbClient,
+            _dispatcher,
+            new NullLogger<KurrentDbSubscriber>(),
+            checkpointFileName);
+
+        _subscriber.Start();
+
+        await _dispatcher.WaitForEventsToBeDispatched(event1, event2, event3);
+
+        var deserializedDispatchedEvents =
+            _dispatcher.DispatchedEvents.Select(DeserializeEventData<SimpleEvent>);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserializedDispatchedEvents, Is.EqualTo(eventsExpectedToBeDispatched));
+            Assert.That(_subscriber.IsLive);
+        });
+    }
+
+    [Test]
+    public async Task CreateCatchupSubscriptionSubscribedToAllUsingCheckpoint_GivenEventsInStreamAndExistingCheckpointFile_DispatchesEventsFromPositionAndBecomesLive()
+    {
+        var event1 = SimpleEvent.Create();
+        var event2 = SimpleEvent.Create();
+        var event3 = SimpleEvent.Create();
+
+        List<SimpleEvent> eventsExpectedToBeDispatched = [event3];
+
+        await AppendEventsToStreamAsync(event1);
+        var startingPosition = await AppendEventsToStreamAsync(event2);
+        await AppendEventsToStreamAsync(event3);
+
+        var checkpointFileName = Path.GetRandomFileName();
+        var checkpoint = new WriteThroughFileCheckpoint(checkpointFileName);
+        checkpoint.Write((long)startingPosition.LogPosition.CommitPosition);
+
+        _subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionSubscribedToAllUsingCheckpoint(
+            _kurrentDbClient,
+            _dispatcher,
+            new NullLogger<KurrentDbSubscriber>(),
+            checkpointFileName);
+
+        _subscriber.Start();
+
+        await _dispatcher.WaitForEventsToBeDispatched(event3);
+
+        var deserializedDispatchedEvents =
+            _dispatcher.DispatchedEvents.Select(DeserializeEventData<SimpleEvent>);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserializedDispatchedEvents, Is.EqualTo(eventsExpectedToBeDispatched));
+            Assert.That(_subscriber.IsLive);
+        });
+    }
+
+
+    [Test]
+    public async Task CreateCatchupSubscriptionUsingCheckpoint_GivenEventsInStreamAndNoExistingCheckpointFile_DispatchesAllEventsAndBecomesLive()
+    {
+        var event1 = SimpleEvent.Create();
+        var event2 = SimpleEvent.Create();
+        var event3 = SimpleEvent.Create();
+
+        List<SimpleEvent> eventsExpectedToBeDispatched = [event1, event2, event3];
+
+        await AppendEventsToStreamAsync(event1);
+        await AppendEventsToStreamAsync(event2);
+        await AppendEventsToStreamAsync(event3);
+
+        var checkpointFileName = Path.GetRandomFileName();
+
+        _subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionUsingCheckpoint(
+            _kurrentDbClient,
+            _dispatcher,
+            StreamName,
+            new NullLogger<KurrentDbSubscriber>(),
+            checkpointFileName);
+
+        _subscriber.Start();
+
+        await _dispatcher.WaitForEventsToBeDispatched(event1, event2, event3);
+
+        var deserializedDispatchedEvents =
+            _dispatcher.DispatchedEvents.Select(DeserializeEventData<SimpleEvent>);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserializedDispatchedEvents, Is.EqualTo(eventsExpectedToBeDispatched));
+            Assert.That(_subscriber.IsLive);
+        });
+    }
+
+    [Test]
+    public async Task CreateCatchupSubscriptionUsingCheckpoint_GivenEventsInStreamAndExistingCheckpointFile_DispatchesEventsFromPositionAndBecomesLive()
+    {
+        var event1 = SimpleEvent.Create();
+        var event2 = SimpleEvent.Create();
+        var event3 = SimpleEvent.Create();
+
+        List<SimpleEvent> eventsExpectedToBeDispatched = [event3];
+
+        await AppendEventsToStreamAsync(event1);
+        await AppendEventsToStreamAsync(event2);
+        await AppendEventsToStreamAsync(event3);
+
+        var checkpointFileName = Path.GetRandomFileName();
+
+        var checkpoint = new WriteThroughFileCheckpoint(checkpointFileName);
+        checkpoint.Write(1);
+
+        _subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionUsingCheckpoint(
+            _kurrentDbClient,
+            _dispatcher,
+            StreamName,
+            new NullLogger<KurrentDbSubscriber>(),
+            checkpointFileName);
+
+        _subscriber.Start();
+
+        await _dispatcher.WaitForEventsToBeDispatched(event3);
+
+        var deserializedDispatchedEvents =
+            _dispatcher.DispatchedEvents.Select(DeserializeEventData<SimpleEvent>);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserializedDispatchedEvents, Is.EqualTo(eventsExpectedToBeDispatched));
+            Assert.That(_subscriber.IsLive);
+        });
+    }
+
     // ReSharper disable once NotAccessedPositionalProperty.Local
     private record SimpleEvent(Guid Id)
     {
