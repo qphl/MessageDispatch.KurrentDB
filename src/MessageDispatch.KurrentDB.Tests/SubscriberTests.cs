@@ -203,6 +203,39 @@ public class SubscriberTests
         });
     }
 
+    [Test]
+    public async Task CreateCatchupSubscriptionSubscribedToAllFromPosition_GivenEventsInStreamAndStartPosition_DispatchesEventsFromPositionAndBecomesLive()
+    {
+        var event1 = SimpleEvent.Create();
+        var event2 = SimpleEvent.Create();
+        var event3 = SimpleEvent.Create();
+
+        List<SimpleEvent> eventsExpectedToBeDispatched = [event3];
+
+        await AppendEventsToStreamAsync(event1);
+        var startingPosition = await AppendEventsToStreamAsync(event2);
+        await AppendEventsToStreamAsync(event3);
+
+        _subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionSubscribedToAllFromPosition(
+            _kurrentDbClient,
+            _dispatcher,
+            new NullLogger<KurrentDbSubscriber>(),
+            startingPosition.LogPosition.CommitPosition);
+
+        _subscriber.Start();
+
+        await _dispatcher.WaitForEventsToBeDispatched(event3);
+
+        var deserializedDispatchedEvents =
+            _dispatcher.DispatchedEvents.Select(DeserializeEventData<SimpleEvent>);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserializedDispatchedEvents, Is.EqualTo(eventsExpectedToBeDispatched));
+            Assert.That(_subscriber.IsLive);
+        });
+    }
+
     // ReSharper disable once NotAccessedPositionalProperty.Local
     private record SimpleEvent(Guid Id)
     {
@@ -270,11 +303,11 @@ public class SubscriberTests
             Encoding.UTF8.GetBytes(JsonSerializer.Serialize(metaData, options)));
     }
 
-    private async Task AppendEventsToStreamAsync(params object[] events)
+    private async Task<IWriteResult> AppendEventsToStreamAsync(params object[] events)
     {
         var eventData = events.Select(e => ToEventData(e));
         var client = new KurrentDBClient(KurrentDBClientSettings.Create(_connectionString));
 
-        await client.AppendToStreamAsync(StreamName, StreamState.Any, eventData);
+        return await client.AppendToStreamAsync(StreamName, StreamState.Any, eventData);
     }
 }

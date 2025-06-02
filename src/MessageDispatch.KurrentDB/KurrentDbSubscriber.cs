@@ -166,7 +166,6 @@ public class KurrentDbSubscriber
     /// <param name="logger">Logger.</param>
     /// <param name="startingPosition">Starting Position.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
-    // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionSubscribedToAllFromPosition(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
