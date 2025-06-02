@@ -156,7 +156,8 @@ public class KurrentDbSubscriber
             kurrentDbClient,
             dispatcher,
             AllStreamName,
-            logger);
+            logger,
+            0);
 
     /// <summary>
     /// Creates an KurrentDB catchup subscription that is subscribed to all from a position.
