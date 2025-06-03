@@ -24,7 +24,7 @@ public class SubscriberTests
     public async Task Setup()
     {
         const int eventStoreHostPort = 1234;
-        const string eventStoreVersion = "23.10.0";
+        const string eventStoreVersion = "24.10.5";
 
         var eventStoreImageName = RuntimeInformation.OSArchitecture == Architecture.Arm64
             ? $"ghcr.io/eventstore/eventstore:{eventStoreVersion}-alpha-arm64v8"
@@ -430,7 +430,6 @@ public class SubscriberTests
             {
                 { "EVENTSTORE_INSECURE", "true" },
                 { "EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP", "true" },
-                { "EVENTSTORE_ENABLE_EXTERNAL_TCP", "true" },
                 { "EVENTSTORE_HTTP_PORT", hostPort.ToString() },
                 { "EVENTSTORE_RUN_PROJECTIONS", "All" },
             })
