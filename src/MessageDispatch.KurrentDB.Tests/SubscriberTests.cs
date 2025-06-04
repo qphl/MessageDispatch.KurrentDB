@@ -383,10 +383,22 @@ public class SubscriberTests
         });
     }
 
-    // ReSharper disable once NotAccessedPositionalProperty.Local
-    private record SimpleEvent(Guid Id)
+    private class SimpleEvent
     {
+        // ReSharper disable once UnusedAutoPropertyAccessor.Local
+        // ReSharper disable once MemberCanBePrivate.Local
+        public Guid Id { get; }
+
+        // ReSharper disable once MemberCanBePrivate.Local
+        public SimpleEvent(Guid id) => Id = id;
+
         public static SimpleEvent Create() => new(Guid.NewGuid());
+
+        public override bool Equals(object? obj) => obj is SimpleEvent other && Id.Equals(other.Id);
+
+        public override int GetHashCode() => Id.GetHashCode();
+
+        public override string ToString() => Id.ToString();
     }
 
     private class AwaitableDispatcherSpy : IDispatcher<ResolvedEvent>
@@ -419,7 +431,7 @@ public class SubscriberTests
     }
 
     private static T? DeserializeEventData<T>(ResolvedEvent message) =>
-        JsonSerializer.Deserialize<T>(Encoding.UTF8.GetString(message.Event.Data.Span));
+        JsonSerializer.Deserialize<T>(Encoding.UTF8.GetString(message.Event.Data.Span.ToArray()));
 
     private static EventStoreDbContainer BuildEventStoreContainer(string imageName, int hostPort) =>
         new EventStoreDbBuilder()
