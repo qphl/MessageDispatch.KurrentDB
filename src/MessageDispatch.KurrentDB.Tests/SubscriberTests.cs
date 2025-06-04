@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Pharmaxo. All rights reserved.
 
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -381,6 +382,58 @@ public class SubscriberTests
             Assert.That(deserializedDispatchedEvents, Is.EqualTo(eventsExpectedToBeDispatched));
             Assert.That(_subscriber.IsLive);
         });
+    }
+
+    [Test]
+    public async Task IsLive_WhenCatchingUpUsingLinkedEventsGivenMissingLinkedEvent_ReturnsTrueOnceCaughtUp()
+    {
+        await AppendEventsToStreamAsync(SimpleEvent.Create(), SimpleEvent.Create());
+
+        const string linkedStream = "non-system";
+        var event1LinkedData = new EventData(
+            Uuid.NewUuid(),
+            SystemEventTypes.LinkTo,
+            Encoding.UTF8.GetBytes($"0@{StreamName}")
+        );
+
+        var event2LinkedData = new EventData(
+            Uuid.NewUuid(),
+            SystemEventTypes.LinkTo,
+            Encoding.UTF8.GetBytes($"1@{StreamName}")
+        );
+
+        var deletedLinkData = new EventData(
+            Uuid.NewUuid(),
+            SystemEventTypes.LinkTo,
+            Encoding.UTF8.GetBytes($"2@{StreamName}")
+        );
+
+        await _kurrentDbClient.AppendToStreamAsync(
+            linkedStream,
+            StreamState.NoStream,
+            [event1LinkedData, event2LinkedData, deletedLinkData]);
+
+        _subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionFromPosition(
+            _kurrentDbClient,
+            _dispatcher,
+            linkedStream,
+            new NullLogger<KurrentDbSubscriber>(),
+            null);
+
+        _subscriber.Start();
+
+        var stopwatch = Stopwatch.StartNew();
+        while (stopwatch.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            if (_subscriber.IsLive)
+            {
+                break;
+            }
+
+            Thread.Sleep(TimeSpan.FromMilliseconds(100));
+        }
+
+        Assert.That(_subscriber.IsLive, "Subscriber was not live");
     }
 
     private class SimpleEvent

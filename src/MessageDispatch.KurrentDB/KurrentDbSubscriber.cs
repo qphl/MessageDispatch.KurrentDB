@@ -349,7 +349,8 @@ public class KurrentDbSubscriber
 
     private void ProcessEvent(ResolvedEvent resolvedEvent)
     {
-        if (resolvedEvent.Event.EventType.StartsWith("$"))
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalse - the linked event could be null if the original event was deleted.
+        if (resolvedEvent.Event is null || resolvedEvent.Event.EventType.StartsWith("$"))
         {
             return;
         }
