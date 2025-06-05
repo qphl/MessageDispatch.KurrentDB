@@ -16,8 +16,12 @@ namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 /// </summary>
 public class KurrentDbSubscriber : IKurrentDbSubscriber
 {
+    /// <summary>
+    /// Setting this to 100 as 3200 records seems like a sensible balance between checking too often and too infrequently
+    /// https://docs.kurrent.io/clients/grpc/subscriptions.html#updating-checkpoints-at-regular-intervals
+    /// </summary>
+    private const uint CheckpointInterval = 100;
     private const string AllStreamName = "$all";
-    private const uint CheckpointInterval = 1;
     private readonly WriteThroughFileCheckpoint _checkpoint;
     private KurrentDBClient _kurrentDbClient;
     private ulong? _startingPosition;
@@ -86,11 +90,8 @@ public class KurrentDbSubscriber : IKurrentDbSubscriber
         }
     }
 
-    /// <summary>
-    /// Gets a value indicating whether the view model is ready or not.
-    /// </summary>
-    /// <returns>Returns true if catchup is within threshold.</returns>
-    public bool IsLive { get; set; } = false;
+    /// <inheritdoc />
+    public bool IsLive { get; set; }
 
     /// <summary>
     /// Creates a live KurrentDB subscription.
@@ -301,7 +302,7 @@ public class KurrentDbSubscriber : IKurrentDbSubscriber
                 subscriptionStart = _startingPosition.HasValue ? FromStream.After(new StreamPosition(_startingPosition.Value)) : FromStream.Start;
             }
 
-            return _kurrentDbClient.SubscribeToStream(_streamName, FromStream.End, resolveLinkTos, cancellationToken: _cts.Token);
+            return _kurrentDbClient.SubscribeToStream(_streamName, subscriptionStart, resolveLinkTos, cancellationToken: _cts.Token);
         }
     }
 
@@ -309,10 +310,7 @@ public class KurrentDbSubscriber : IKurrentDbSubscriber
     /// Shut down the subscription.
     /// </summary>
     // ReSharper disable once UnusedMember.Global
-    public void ShutDown()
-    {
-        _cts.Cancel();
-    }
+    public void ShutDown() => _cts.Cancel();
 
     private void Init(
         KurrentDBClient connection,
@@ -335,18 +333,18 @@ public class KurrentDbSubscriber : IKurrentDbSubscriber
         _setLastPositions = _subscribeToAll
             ? async () =>
             {
-                var eventsWithinThreshold = await _kurrentDbClient.ReadAllAsync(
+                var lastEventFromStream = await _kurrentDbClient.ReadAllAsync(
                         Direction.Backwards,
                         Position.End,
                         maxCount: 1,
                         resolveLinkTos: false)
                     .ToListAsync();
 
-                _actualEndOfStreamPosition = eventsWithinThreshold.First().OriginalEvent.Position.CommitPosition;
+                _actualEndOfStreamPosition = lastEventFromStream.First().OriginalEvent.Position.CommitPosition;
             }
         : async () =>
         {
-            var eventsWithinThreshold = await _kurrentDbClient.ReadStreamAsync(
+            var lastEventFromStream = await _kurrentDbClient.ReadStreamAsync(
                     Direction.Backwards,
                     _streamName,
                     StreamPosition.End,
@@ -354,7 +352,7 @@ public class KurrentDbSubscriber : IKurrentDbSubscriber
                     resolveLinkTos: false)
                 .ToListAsync();
 
-            _actualEndOfStreamPosition = eventsWithinThreshold.First().OriginalEventNumber.ToUInt64();
+            _actualEndOfStreamPosition = lastEventFromStream.First().OriginalEventNumber.ToUInt64();
         };
     }
 
@@ -387,12 +385,10 @@ public class KurrentDbSubscriber : IKurrentDbSubscriber
         }
     }
 
-    private ulong GetLastProcessedPosition(ResolvedEvent resolvedEvent)
-    {
-        return _subscribeToAll
+    private ulong GetLastProcessedPosition(ResolvedEvent resolvedEvent) =>
+        _subscribeToAll
             ? resolvedEvent.OriginalEvent.Position.CommitPosition
             : resolvedEvent.OriginalEventNumber.ToUInt64();
-    }
 
     private void WriteCheckpoint(ulong checkpointNumber)
     {

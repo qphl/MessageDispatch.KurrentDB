@@ -18,7 +18,7 @@ public interface IKurrentDbSubscriber
     /// </summary>
     /// <returns>Returns true if catchup is within threshold.</returns>
     // ReSharper disable once UnusedMemberInSuper.Global
-    bool IsLive { get; set; }
+    bool IsLive { get; }
 
     /// <summary>
     /// Start the subscriber.
