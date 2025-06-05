@@ -495,7 +495,7 @@ public class SubscriberTests
             .WithEnvironment(new Dictionary<string, string>
             {
                 { "EVENTSTORE_DEV", "true" },
-                { "EVENTSTORE_INSECURE", "true" },
+                { "EVENTSTORE_INSECURE", "false" },
                 { "EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP", "true" },
                 { "EVENTSTORE_HTTP_PORT", hostPort.ToString() },
                 { "EVENTSTORE_RUN_PROJECTIONS", "All" },
