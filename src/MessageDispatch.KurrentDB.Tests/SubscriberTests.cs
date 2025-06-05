@@ -35,7 +35,7 @@ public class SubscriberTests
         await eventStoreContainer.StartAsync();
 
         var mappedHostPort = eventStoreContainer.GetMappedPublicPort(eventStoreHostPort);
-        _connectionString = $"esdb://admin:changeit@localhost:{mappedHostPort}?tls=false";
+        _connectionString = $"esdb://admin:changeit@localhost:{mappedHostPort}?tls=true&tlsVerifyCert=false";
 
         _kurrentDbClient = new KurrentDBClient(KurrentDBClientSettings.Create(_connectionString));
         _dispatcher = new AwaitableDispatcherSpy();
@@ -490,9 +490,11 @@ public class SubscriberTests
         new EventStoreDbBuilder()
             .WithImage(imageName)
             .WithCleanUp(true)
+            .WithCreateParameterModifier(cmd => cmd.User = "root")
             .WithPortBinding(hostPort, true)
             .WithEnvironment(new Dictionary<string, string>
             {
+                { "EVENTSTORE_DEV", "true" },
                 { "EVENTSTORE_INSECURE", "true" },
                 { "EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP", "true" },
                 { "EVENTSTORE_HTTP_PORT", hostPort.ToString() },
