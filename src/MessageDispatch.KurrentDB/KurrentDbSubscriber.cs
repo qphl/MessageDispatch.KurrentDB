@@ -103,7 +103,6 @@ public class KurrentDbSubscriber
     /// <param name="streamName">Stream name to push events into.</param>
     /// <param name="logger">Logger.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
-    // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateLiveSubscription(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
@@ -120,7 +119,6 @@ public class KurrentDbSubscriber
     /// <param name="logger">Logger.</param>
     /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
-    // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionUsingCheckpoint(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
@@ -138,7 +136,6 @@ public class KurrentDbSubscriber
     /// <param name="logger">Logger.</param>
     /// <param name="startingPosition">Starting Position.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
-    // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionFromPosition(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
@@ -154,7 +151,6 @@ public class KurrentDbSubscriber
     /// <param name="dispatcher">Dispatcher.</param>
     /// <param name="logger">Logger.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
-    // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionSubscribedToAll(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
@@ -163,7 +159,8 @@ public class KurrentDbSubscriber
             kurrentDbClient,
             dispatcher,
             AllStreamName,
-            logger);
+            logger,
+            null);
 
     /// <summary>
     /// Creates an KurrentDB catchup subscription that is subscribed to all from a position.
@@ -173,7 +170,6 @@ public class KurrentDbSubscriber
     /// <param name="logger">Logger.</param>
     /// <param name="startingPosition">Starting Position.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
-    // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionSubscribedToAllFromPosition(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
@@ -194,7 +190,6 @@ public class KurrentDbSubscriber
     /// <param name="logger">Logger.</param>
     /// <param name="checkpointFilePath">Path of the checkpoint file.</param>
     /// <returns>A new KurrentDbSubscriber object.</returns>
-    // ReSharper disable once UnusedMember.Global
     public static KurrentDbSubscriber CreateCatchupSubscriptionSubscribedToAllUsingCheckpoint(
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
@@ -210,7 +205,6 @@ public class KurrentDbSubscriber
     /// <summary>
     /// Start the subscriber.
     /// </summary>
-    // ReSharper disable once MemberCanBePrivate.Global
     public async void Start()
     {
         _cts = new CancellationTokenSource();
@@ -311,7 +305,6 @@ public class KurrentDbSubscriber
     /// <summary>
     /// Shut down the subscription.
     /// </summary>
-    // ReSharper disable once UnusedMember.Global
     public void ShutDown() => _cts.Cancel();
 
     private void Init(
@@ -360,7 +353,8 @@ public class KurrentDbSubscriber
 
     private void ProcessEvent(ResolvedEvent resolvedEvent)
     {
-        if (resolvedEvent.Event.EventType.StartsWith("$"))
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalse - the linked event could be null if the original event was deleted.
+        if (resolvedEvent.Event is null || resolvedEvent.Event.EventType.StartsWith("$"))
         {
             return;
         }
