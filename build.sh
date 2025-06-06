@@ -9,4 +9,4 @@ if [ -n "$2" ]; then tag="$2"
 fi
 tag=${tag/tags\//}
 
-dotnet pack .\\src\\eventstore\\eventstore.csproj -o .\\dist -p:Version="$version" -p:PackageVersion="$version" -p:Tag="$tag" -c Release
+dotnet pack .\\src\\MessageDispatch.KurrentDB\\MessageDispatch.KurrentDB.csproj -o .\\dist -p:Version="$version" -p:PackageVersion="$version" -p:Tag="$tag" -c Release

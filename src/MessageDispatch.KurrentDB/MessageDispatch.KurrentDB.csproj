@@ -1,0 +1,50 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	  <TargetFrameworks>net8.0;net481</TargetFrameworks>
+	  <LangVersion>latest</LangVersion>
+    <AssemblyName>PharmaxoScientific.MessageDispatch.KurrentDB</AssemblyName>
+    <RootNamespace>PharmaxoScientific.MessageDispatch.KurrentDB</RootNamespace>
+    <Authors>Pharmaxo Scientific</Authors>
+    <Company>Pharmaxo Scientific</Company>
+    <Copyright>Pharmaxo Scientific</Copyright>
+    <PackageLicense>https://github.com/qphl/MessageDispatch.KurrentDB/blob/master/LICENSE</PackageLicense>
+    <PackageProjectUrl>https://github.com/qphl/MessageDispatch.KurrentDB</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/qphl/MessageDispatch.KurrentDB</RepositoryUrl>
+    <PackageTags>Message Dispatching, Event Sourcing, KurrentDB</PackageTags>
+    <PackageId>PharmaxoScientific.MessageDispatch.KurrentDB</PackageId>
+    <Product>PharmaxoScientific.MessageDispatch.KurrentDB</Product>
+    <Description>A package to use KurrentDB to get Events to Dispatch using PharmaxoScientific.MessageDispatch.KurrentDB.</Description>
+    <PackageReleaseNotes>https://GitHub.com/qphl/MessageDispatch.KurrentDB/releases/tag/$(Tag)</PackageReleaseNotes>
+    <PackageLicenseExpression>BSD-3-Clause</PackageLicenseExpression>
+    <PackageIcon>Logo.png</PackageIcon>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DocumentationFile>bin\Debug\net8.0\PharmaxoScientific.MessageDispatch.KurrentDB.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DocumentationFile>bin\Release\net8.0\PharmaxoScientific.MessageDispatch.KurrentDB.xml</DocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CorshamScience.MessageDispatch.Core" Version="2.0.0" />
+    <PackageReference Include="KurrentDB.Client" Version="1.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Logo.png">
+      <PackagePath></PackagePath>
+      <Pack>True</Pack>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="MessageDispatch.KurrentDB.Tests" />
+  </ItemGroup>
+
+</Project>
