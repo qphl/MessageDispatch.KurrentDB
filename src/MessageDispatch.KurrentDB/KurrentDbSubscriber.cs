@@ -264,6 +264,7 @@ public class KurrentDbSubscriber
             catch (Exception ex)
             {
                 IsLive = false;
+                _startingPosition = _lastProcessedEventPosition;
                 _logger.LogError(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
                 Console.WriteLine(ex);
             }
