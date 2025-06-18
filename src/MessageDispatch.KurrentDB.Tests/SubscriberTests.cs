@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Pharmaxo. All rights reserved.
 
 using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -173,6 +174,38 @@ public class SubscriberTests
     }
 
     [Test]
+    public async Task CreateCatchupSubscriptionFromPosition_GivenSubscribeFromStart_DispatchesEventsFromStartAndBecomesLive()
+    {
+        _subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionFromPosition(
+            _kurrentDbClient,
+            _dispatcher,
+            StreamName,
+            new NullLogger<KurrentDbSubscriber>(),
+            null);
+
+        var event1 = SimpleEvent.Create();
+        var event2 = SimpleEvent.Create();
+        var event3 = SimpleEvent.Create();
+
+        List<SimpleEvent> events = [event1, event2, event3];
+
+        _subscriber.Start();
+
+        await AppendEventsToStreamAsync(event1, event2, event3);
+
+        await _dispatcher.WaitForEventsToBeDispatched(event1, event2, event3);
+
+        var deserializedDispatchedEvents =
+            _dispatcher.DispatchedEvents.Select(DeserializeEventData<SimpleEvent>);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserializedDispatchedEvents, Is.EqualTo(events));
+            Assert.That(_subscriber.IsLive);
+        });
+    }
+
+    [Test]
     public async Task CreateCatchupSubscriptionFromPosition_GivenEventsInStreamAndStartPosition_DispatchesEventsFromPositionAndBecomesLive()
     {
         _subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionFromPosition(
@@ -200,6 +233,47 @@ public class SubscriberTests
         Assert.Multiple(() =>
         {
             Assert.That(deserializedDispatchedEvents, Is.EqualTo(events));
+            Assert.That(_subscriber.IsLive);
+        });
+    }
+
+    [Test]
+    public async Task CreateCatchupSubscriptionFromPosition_GivenSubscriptionDropped_ResubscribesFromPeviousProcessedEventPosition()
+    {
+        _subscriber = KurrentDbSubscriber.CreateCatchupSubscriptionFromPosition(
+            _kurrentDbClient,
+            _dispatcher,
+            StreamName,
+            new NullLogger<KurrentDbSubscriber>(),
+            null);
+
+        var event1 = SimpleEvent.Create();
+        var event2 = SimpleEvent.Create();
+        var event3 = SimpleEvent.Create();
+        var event4 = SimpleEvent.Create();
+        var event5 = SimpleEvent.Create();
+
+        _subscriber.Start();
+
+        await AppendEventsToStreamAsync(event1, event2, event3);
+        await _dispatcher.WaitForEventsToBeDispatched(event1, event2, event3);
+        _dispatcher.ClearDispatchedEvents();
+
+        // Force the client to throw an exception so that a new subscription gets created
+        await _kurrentDbClient.DisposeAsync();
+        await AppendEventsToStreamAsync(event4, event5);
+
+        InitialiseSubscriberClient();
+
+        List<SimpleEvent> postResubscribeEvents = [event4, event5];
+        await _dispatcher.WaitForEventsToBeDispatched(event4, event5);
+
+        var deserializedDispatchedEvents =
+            _dispatcher.DispatchedEvents.Select(DeserializeEventData<SimpleEvent>);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserializedDispatchedEvents, Is.EqualTo(postResubscribeEvents));
             Assert.That(_subscriber.IsLive);
         });
     }
@@ -458,6 +532,8 @@ public class SubscriberTests
     {
         public List<ResolvedEvent> DispatchedEvents { get; } = [];
 
+        public void ClearDispatchedEvents() => DispatchedEvents.Clear();
+
         public void Dispatch(ResolvedEvent message) => DispatchedEvents.Add(message);
 
         public Task WaitForEventsToBeDispatched(params object[] events)
@@ -470,10 +546,10 @@ public class SubscriberTests
             var iterations = 0;
             while (DispatchedEvents.Count != events.Length)
             {
-                Thread.Sleep(100);
+                Thread.Sleep(50);
                 iterations++;
 
-                if (iterations > 10)
+                if (iterations > 100)
                 {
                     throw new TimeoutException("Expected events weren't dispatched within the allotted time.");
                 }
@@ -522,5 +598,15 @@ public class SubscriberTests
         var client = new KurrentDBClient(KurrentDBClientSettings.Create(_connectionString));
 
         return await client.AppendToStreamAsync(StreamName, StreamState.Any, eventData);
+    }
+
+    private void InitialiseSubscriberClient()
+    {
+        var field = typeof(KurrentDbSubscriber)
+            .GetField("_kurrentDbClient", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        _kurrentDbClient = new KurrentDBClient(KurrentDBClientSettings.Create(_connectionString));
+
+        field?.SetValue(_subscriber, _kurrentDbClient);
     }
 }
