@@ -1,7 +1,5 @@
 ﻿// Copyright (c) Pharmaxo. All rights reserved.
 
-// See https://aka.ms/new-console-template for more information
-
 using PharmaxoScientific.MessageDispatch.KurrentDB;
 
 var filePath = args[0];
