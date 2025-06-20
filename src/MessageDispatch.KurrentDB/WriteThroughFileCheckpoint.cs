@@ -9,7 +9,7 @@ namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 /// <summary>
 /// Writes a checkpoint to a file pulled from event store.
 /// </summary>
-internal class WriteThroughFileCheckpoint
+public class WriteThroughFileCheckpoint
 {
     private readonly object _streamLock = new();
     private readonly FileStream _fileStream;

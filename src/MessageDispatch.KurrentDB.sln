@@ -5,7 +5,9 @@ VisualStudioVersion = 17.12.35931.192
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MessageDispatch.KurrentDB", "MessageDispatch.KurrentDB\MessageDispatch.KurrentDB.csproj", "{8B3CD5D9-28DB-4823-8ACE-C5B9770FFE5B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MessageDispatch.KurrentDB.Tests", "MessageDispatch.KurrentDB.Tests\MessageDispatch.KurrentDB.Tests.csproj", "{10045A11-D589-4A7F-BC17-C4CE508B04F4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MessageDispatch.KurrentDB.Tests", "MessageDispatch.KurrentDB.Tests\MessageDispatch.KurrentDB.Tests.csproj", "{10045A11-D589-4A7F-BC17-C4CE508B04F4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CheckpointUpdater", "CheckpointUpdater\CheckpointUpdater.csproj", "{E1863D99-9071-4B62-8AA9-0B068C5F3275}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{10045A11-D589-4A7F-BC17-C4CE508B04F4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{10045A11-D589-4A7F-BC17-C4CE508B04F4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{10045A11-D589-4A7F-BC17-C4CE508B04F4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E1863D99-9071-4B62-8AA9-0B068C5F3275}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E1863D99-9071-4B62-8AA9-0B068C5F3275}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E1863D99-9071-4B62-8AA9-0B068C5F3275}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E1863D99-9071-4B62-8AA9-0B068C5F3275}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
