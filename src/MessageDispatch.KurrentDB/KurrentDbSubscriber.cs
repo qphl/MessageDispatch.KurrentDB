@@ -95,15 +95,20 @@ public class KurrentDbSubscriber
     /// </summary>
     private void SetupCallbackTimer()
     {
-        //Create the timer and set it for a sixty second interval
-        _timer = new Timer();
-        _timer.Interval = 60000;
+        Version version = Environment.Version;
 
-        _timer.Elapsed += CallbackEvent;
+        if (version.Major < 8)
+        {
+            //Create the timer and set it for a sixty second interval
+            _timer = new Timer();
+            _timer.Interval = 60000;
 
-        _timer.AutoReset = true;
+            _timer.Elapsed += CallbackEvent;
 
-        _timer.Enabled = true;
+            _timer.AutoReset = true;
+
+            _timer.Enabled = true;
+        }
     }
 
     private void CallbackEvent(object source, ElapsedEventArgs e)
