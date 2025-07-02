@@ -102,7 +102,7 @@ public class KurrentDbSubscriber
 
     private void CallbackEvent(object source, ElapsedEventArgs e)
     {
-        _kurrentDbClient.ReadStreamAsync(Direction.Backwards, _streamName, StreamPosition.End);
+        _kurrentDbClient.ReadStreamAsync(Direction.Backwards, _streamName, StreamPosition.End, maxCount: 1);
     }
 
     /// <summary>
