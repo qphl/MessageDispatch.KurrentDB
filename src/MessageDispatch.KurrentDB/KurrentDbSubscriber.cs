@@ -8,6 +8,8 @@ using CorshamScience.MessageDispatch.Core;
 using KurrentDB.Client;
 using Microsoft.Extensions.Logging;
 using static KurrentDB.Client.KurrentDBClient;
+using System.Timers;
+using Timer = System.Timers.Timer;
 
 namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
@@ -37,6 +39,8 @@ public class KurrentDbSubscriber
     private IDispatcher<ResolvedEvent> _dispatcher;
     private ILogger _logger;
 
+    private Timer _timer;
+
     /// <summary>
     /// Gets a value indicating whether the view model is ready or not.
     /// </summary>
@@ -48,7 +52,11 @@ public class KurrentDbSubscriber
         string streamName,
         ILogger logger,
         ulong? startingPosition)
-        => Init(kurrentDbClient, dispatcher, streamName, logger, startingPosition);
+    {
+        SetupCallbackTimer();
+
+        Init(kurrentDbClient, dispatcher, streamName, logger, startingPosition);
+    }
 
     private KurrentDbSubscriber(
         KurrentDBClient kurrentDbClient,
@@ -57,6 +65,8 @@ public class KurrentDbSubscriber
         string streamName,
         string checkpointFilePath)
     {
+        SetupCallbackTimer();
+
         _checkpoint = new WriteThroughFileCheckpoint(checkpointFilePath, -1);
         var initialCheckpointPosition = _checkpoint.Read();
         ulong? startingPosition = null;
@@ -74,7 +84,25 @@ public class KurrentDbSubscriber
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger)
-        => Init(kurrentDbClient, dispatcher, streamName, logger, liveOnly: true);
+    {
+        SetupCallbackTimer();
+
+        Init(kurrentDbClient, dispatcher, streamName, logger, liveOnly: true);
+    }
+
+    /// <summary>
+    /// Creates a callback timer to ping KurrentDB every 60s to stop it from going idle
+    /// </summary>
+    private void SetupCallbackTimer()
+    {
+        //Create the timer and set it for a sixty second interval
+        _timer = new Timer();
+        _timer.Interval = 60000;
+
+        _timer.AutoReset = true;
+
+        _timer.Enabled = true;
+    }
 
     /// <summary>
     /// Gets a new catchup progress object.
