@@ -99,9 +99,16 @@ public class KurrentDbSubscriber
         _timer = new Timer();
         _timer.Interval = 60000;
 
+        _timer.Elapsed += CallbackEvent;
+
         _timer.AutoReset = true;
 
         _timer.Enabled = true;
+    }
+
+    private void CallbackEvent(object source, ElapsedEventArgs e)
+    {
+        _kurrentDbClient.ReadStreamAsync(Direction.Backwards, _streamName, StreamPosition.End);
     }
 
     /// <summary>
