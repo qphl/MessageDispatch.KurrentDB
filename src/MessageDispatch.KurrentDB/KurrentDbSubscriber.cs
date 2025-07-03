@@ -212,7 +212,7 @@ public class KurrentDbSubscriber
         {
             try
             {
-                if(_subscription == null)
+                if (_subscription == null)
                 {
                     _subscription = CreateSubscription();
                     _logger.LogInformation("Subscribed to '{StreamName}'", _streamName);
