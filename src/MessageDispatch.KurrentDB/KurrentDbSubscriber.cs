@@ -266,10 +266,12 @@ public class KurrentDbSubscriber
 #if NETFRAMEWORK
             catch (Grpc.Core.RpcException ex)
             {
-                //Ignore the console writeline, it's for debug purposes only.
-                Console.WriteLine("Fetchez la vache");
-                _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
-                TryCreatingSubscription();
+                var innerWebException = ex.InnerException.InnerException;
+                if (innerWebException.Message.Contains("Error 12002"))
+                {
+                    _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
+                    TryCreatingSubscription();
+                }
             }
 #endif
             catch (Exception ex)
@@ -304,7 +306,7 @@ public class KurrentDbSubscriber
             catch
             {
                 IsLive = false;
-                _logger.LogInformation("Failed to create subscription retrying");
+                _logger.LogInformation("Failed to recreate subscription retrying");
             }
         }
     }
