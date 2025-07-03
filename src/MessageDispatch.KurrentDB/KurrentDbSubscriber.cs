@@ -41,7 +41,9 @@ public class KurrentDbSubscriber
     private IDispatcher<ResolvedEvent> _dispatcher;
     private ILogger _logger;
 
+#if NETFRAMEWORK
     private Timer _timer;
+#endif
 
     /// <summary>
     /// Gets a value indicating whether the view model is ready or not.
@@ -83,23 +85,22 @@ public class KurrentDbSubscriber
     /// <summary>
     /// Creates a callback timer to ping KurrentDB every 60s to stop it from going idle
     /// </summary>
-    private void SetupCallbackTimer()
+    private void MaintainConnectionTimer()
     {
-        if (RuntimeInformation.FrameworkDescription.StartsWith(".NET Framework"))
-        {
-            //Create the timer and set it for a sixty second interval
-            _timer = new Timer();
-            _timer.Interval = CallbackTimerInterval;
+#if NETFRAMEWORK
+        //Create the timer and set it for a sixty second interval
+        _timer = new Timer();
+        _timer.Interval = CallbackTimerInterval;
 
-            _timer.Elapsed += CallbackEvent;
+        _timer.Elapsed += PerformKeepAliveRead;
 
-            _timer.AutoReset = true;
+        _timer.AutoReset = true;
 
-            _timer.Enabled = true;
-        }
+        _timer.Enabled = true;
+#endif
     }
 
-    private void CallbackEvent(object source, ElapsedEventArgs e)
+    private void PerformKeepAliveRead(object source, ElapsedEventArgs e)
     {
         if (IsLive)
         {
@@ -240,7 +241,7 @@ public class KurrentDbSubscriber
     {
         _cts = new CancellationTokenSource();
 
-        SetupCallbackTimer();
+        MaintainConnectionTimer();
 
         while (true)
         {
