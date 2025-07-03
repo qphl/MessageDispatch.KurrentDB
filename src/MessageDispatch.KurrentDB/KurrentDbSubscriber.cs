@@ -212,8 +212,11 @@ public class KurrentDbSubscriber
         {
             try
             {
-                _subscription = CreateSubscription();
-                _logger.LogInformation("Subscribed to '{StreamName}'", _streamName);
+                if(_subscription == null)
+                {
+                    _subscription = CreateSubscription();
+                    _logger.LogInformation("Subscribed to '{StreamName}'", _streamName);
+                }
 
                 await foreach (var message in _subscription.Messages)
                 {
@@ -266,6 +269,7 @@ public class KurrentDbSubscriber
                 //Ignore the console writeline, it's for debug purposes only.
                 Console.WriteLine("Fetchez la vache");
                 _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
+                TryCreatingSubscription();
             }
 #endif
             catch (Exception ex)
@@ -281,6 +285,30 @@ public class KurrentDbSubscriber
             await Task.Delay(1000 + new Random((int)DateTime.UtcNow.Ticks).Next(1000));
         }
     }
+
+#if NETFRAMEWORK
+    private void TryCreatingSubscription()
+    {
+        var successfulSubscription = false;
+
+        while (!successfulSubscription)
+        {
+            try
+            {
+                // This allows us one shot to create the subscription without saying the service is down
+                _logger.LogInformation("Attempting to recreate Subscription");
+                _subscription = CreateSubscription();
+                successfulSubscription = true;
+                _logger.LogInformation("Subscription recreated");
+            }
+            catch
+            {
+                IsLive = false;
+                _logger.LogInformation("Failed to create subscription retrying");
+            }
+        }
+    }
+#endif
 
     private StreamSubscriptionResult CreateSubscription()
     {
