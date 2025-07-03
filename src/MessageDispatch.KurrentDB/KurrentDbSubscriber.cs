@@ -102,7 +102,10 @@ public class KurrentDbSubscriber
 
     private void CallbackEvent(object source, ElapsedEventArgs e)
     {
-        _kurrentDbClient.ReadStreamAsync(Direction.Backwards, _streamName, StreamPosition.End, maxCount: 1);
+        if (IsLive)
+        {
+            _kurrentDbClient.ReadStreamAsync(Direction.Backwards, _streamName, StreamPosition.End, maxCount: 1);
+        }
     }
 
     /// <summary>
@@ -238,6 +241,8 @@ public class KurrentDbSubscriber
     {
         _cts = new CancellationTokenSource();
 
+        SetupCallbackTimer();
+
         while (true)
         {
             try
@@ -275,8 +280,6 @@ public class KurrentDbSubscriber
                             break;
                     }
                 }
-
-                SetupCallbackTimer();
             }
             // User initiated drop, do not resubscribe
             catch (OperationCanceledException ex)
