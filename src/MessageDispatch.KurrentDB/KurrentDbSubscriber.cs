@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using static KurrentDB.Client.KurrentDBClient;
 using System.Timers;
 using Timer = System.Timers.Timer;
+using System.Runtime.InteropServices;
 
 namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
@@ -84,9 +85,7 @@ public class KurrentDbSubscriber
     /// </summary>
     private void SetupCallbackTimer()
     {
-        Version version = Environment.Version;
-
-        if (version.Major < 8)
+        if (RuntimeInformation.FrameworkDescription.StartsWith(".NET Framework"))
         {
             //Create the timer and set it for a sixty second interval
             _timer = new Timer();
