@@ -265,7 +265,7 @@ public class KurrentDbSubscriber
             {
                 //Ignore the console writeline, it's for debug purposes only.
                 Console.WriteLine("Fetchez la vache");
-                _logger.LogError(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
+                _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
             }
 #endif
             catch (Exception ex)
