@@ -41,9 +41,10 @@ public class KurrentDbSubscriber
 
     private IDispatcher<ResolvedEvent> _dispatcher;
     private ILogger _logger;
+    private StreamSubscriptionResult _subscription;
 
 #if NETFRAMEWORK
-    private const uint CallbackTimerInterval = 60000;
+    private const uint CallbackTimerInterval = 40000;
     private Timer _timer;
 #endif
 
@@ -105,7 +106,7 @@ public class KurrentDbSubscriber
     {
         if (IsLive)
         {
-            _kurrentDbClient.ReadStreamAsync(Direction.Backwards, _streamName, StreamPosition.End, maxCount: 1);
+            var subDummy = _subscription.Distinct();
         }
     }
 #endif
@@ -251,10 +252,10 @@ public class KurrentDbSubscriber
         {
             try
             {
-                var subscription = CreateSubscription();
+                _subscription = CreateSubscription();
                 _logger.LogInformation("Subscribed to '{StreamName}'", _streamName);
 
-                await foreach (var message in subscription.Messages)
+                await foreach (var message in _subscription.Messages)
                 {
                     switch (message)
                     {
@@ -299,6 +300,14 @@ public class KurrentDbSubscriber
                 _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.Disposed);
                 break;
             }
+#if NETFRAMEWORK
+            catch (Grpc.Core.RpcException ex)
+            {
+                //Ignore the console writeline, it's for debug purposes only.
+                Console.WriteLine("Fetchez la vache");
+                _logger.LogError(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
+            }
+#endif
             catch (Exception ex)
             {
                 IsLive = false;
