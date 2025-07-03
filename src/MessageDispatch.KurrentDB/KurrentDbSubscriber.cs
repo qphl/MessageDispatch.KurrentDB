@@ -267,7 +267,7 @@ public class KurrentDbSubscriber
             catch (Grpc.Core.RpcException ex)
             {
                 var innerWebException = ex.InnerException.InnerException;
-                if (innerWebException.Message.Contains("Error 12002"))
+                if (innerWebException != null && innerWebException.Message.Contains("Error 12002"))
                 {
                     _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
                     TryCreatingSubscription();
