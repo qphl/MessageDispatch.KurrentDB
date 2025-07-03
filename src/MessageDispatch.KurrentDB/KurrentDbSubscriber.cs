@@ -8,9 +8,11 @@ using CorshamScience.MessageDispatch.Core;
 using KurrentDB.Client;
 using Microsoft.Extensions.Logging;
 using static KurrentDB.Client.KurrentDBClient;
+
+#if NETFRAMEWORK
 using System.Timers;
 using Timer = System.Timers.Timer;
-using System.Runtime.InteropServices;
+#endif
 
 namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
@@ -25,7 +27,6 @@ public class KurrentDbSubscriber
     /// </summary>
     private const uint CheckpointInterval = 100;
     private const string AllStreamName = "$all";
-    private const uint CallbackTimerInterval = 60000;
     private readonly WriteThroughFileCheckpoint _checkpoint;
     private KurrentDBClient _kurrentDbClient;
     private ulong? _startingPosition;
@@ -42,6 +43,7 @@ public class KurrentDbSubscriber
     private ILogger _logger;
 
 #if NETFRAMEWORK
+    private const uint CallbackTimerInterval = 60000;
     private Timer _timer;
 #endif
 
@@ -82,12 +84,12 @@ public class KurrentDbSubscriber
         string streamName,
         ILogger logger) => Init(kurrentDbClient, dispatcher, streamName, logger, liveOnly: true);
 
+#if NETFRAMEWORK
     /// <summary>
     /// Creates a callback timer to ping KurrentDB every 60s to stop it from going idle
     /// </summary>
     private void MaintainConnectionTimer()
     {
-#if NETFRAMEWORK
         //Create the timer and set it for a sixty second interval
         _timer = new Timer();
         _timer.Interval = CallbackTimerInterval;
@@ -97,7 +99,6 @@ public class KurrentDbSubscriber
         _timer.AutoReset = true;
 
         _timer.Enabled = true;
-#endif
     }
 
     private void PerformKeepAliveRead(object source, ElapsedEventArgs e)
@@ -107,6 +108,7 @@ public class KurrentDbSubscriber
             _kurrentDbClient.ReadStreamAsync(Direction.Backwards, _streamName, StreamPosition.End, maxCount: 1);
         }
     }
+#endif
 
     /// <summary>
     /// Gets a new catchup progress object.
@@ -241,7 +243,9 @@ public class KurrentDbSubscriber
     {
         _cts = new CancellationTokenSource();
 
+#if NETFRAMEWORK
         MaintainConnectionTimer();
+#endif
 
         while (true)
         {
