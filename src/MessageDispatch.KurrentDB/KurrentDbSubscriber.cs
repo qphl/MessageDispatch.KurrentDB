@@ -9,11 +9,6 @@ using KurrentDB.Client;
 using Microsoft.Extensions.Logging;
 using static KurrentDB.Client.KurrentDBClient;
 
-#if NETFRAMEWORK
-using System.Timers;
-using Timer = System.Timers.Timer;
-#endif
-
 namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
 /// <summary>
@@ -42,11 +37,6 @@ public class KurrentDbSubscriber
     private IDispatcher<ResolvedEvent> _dispatcher;
     private ILogger _logger;
     private StreamSubscriptionResult _subscription;
-
-#if NETFRAMEWORK
-    private const uint CallbackTimerInterval = 40000;
-    private Timer _timer;
-#endif
 
     /// <summary>
     /// Gets a value indicating whether the view model is ready or not.
@@ -84,32 +74,6 @@ public class KurrentDbSubscriber
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger) => Init(kurrentDbClient, dispatcher, streamName, logger, liveOnly: true);
-
-#if NETFRAMEWORK
-    /// <summary>
-    /// Creates a callback timer to ping KurrentDB every 60s to stop it from going idle
-    /// </summary>
-    private void MaintainConnectionTimer()
-    {
-        //Create the timer and set it for a sixty second interval
-        _timer = new Timer();
-        _timer.Interval = CallbackTimerInterval;
-
-        _timer.Elapsed += PerformKeepAliveRead;
-
-        _timer.AutoReset = true;
-
-        _timer.Enabled = true;
-    }
-
-    private void PerformKeepAliveRead(object source, ElapsedEventArgs e)
-    {
-        if (IsLive)
-        {
-            var subDummy = _subscription.Distinct();
-        }
-    }
-#endif
 
     /// <summary>
     /// Gets a new catchup progress object.
@@ -243,10 +207,6 @@ public class KurrentDbSubscriber
     public async void Start()
     {
         _cts = new CancellationTokenSource();
-
-#if NETFRAMEWORK
-        MaintainConnectionTimer();
-#endif
 
         while (true)
         {
