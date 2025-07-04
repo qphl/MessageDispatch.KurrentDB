@@ -270,14 +270,16 @@ public class KurrentDbSubscriber
 #if NETFRAMEWORK
             catch (Grpc.Core.RpcException ex)
             {
+                _startingPosition = _lastProcessedEventPosition;
+                _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
+
                 if (ex.InnerException != null && ex.InnerException.GetType() == typeof(IOException))
                 {
                     var innerWebException = ex.InnerException.InnerException;
                     if (innerWebException != null && innerWebException.Message.Contains("Error 12002"))
                     {
                         immediateRetry = true;
-                        _startingPosition = _lastProcessedEventPosition;
-                        _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
+                        _logger.LogInformation("Attempting to recreate subscription to '{StreamName}'", _streamName);
                     }
                 }
             }
