@@ -47,8 +47,7 @@ public class KurrentDbSubscriber
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
         ILogger logger,
-        ulong? startingPosition)
-        => Init(kurrentDbClient, dispatcher, streamName, logger, startingPosition);
+        ulong? startingPosition) => Init(kurrentDbClient, dispatcher, streamName, logger, startingPosition);
 
     private KurrentDbSubscriber(
         KurrentDBClient kurrentDbClient,
@@ -73,8 +72,7 @@ public class KurrentDbSubscriber
         KurrentDBClient kurrentDbClient,
         IDispatcher<ResolvedEvent> dispatcher,
         string streamName,
-        ILogger logger)
-        => Init(kurrentDbClient, dispatcher, streamName, logger, liveOnly: true);
+        ILogger logger) => Init(kurrentDbClient, dispatcher, streamName, logger, liveOnly: true);
 
     /// <summary>
     /// Gets a new catchup progress object.
@@ -209,6 +207,8 @@ public class KurrentDbSubscriber
     {
         _cts = new CancellationTokenSource();
 
+        var winHttpExceptionHandled = false;
+
         while (true)
         {
             try
@@ -245,6 +245,8 @@ public class KurrentDbSubscriber
                             IsLive = false;
                             break;
                     }
+
+                    winHttpExceptionHandled = false;
                 }
             }
             // User initiated drop, do not resubscribe
@@ -261,19 +263,65 @@ public class KurrentDbSubscriber
                 _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.Disposed);
                 break;
             }
+#if NETFRAMEWORK
+            catch (Grpc.Core.RpcException ex)
+            {
+                _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
+                _startingPosition = _lastProcessedEventPosition;
+
+                if (IsNetFrameworkTimeoutException(ex))
+                {
+                    // If subsequent .net framework `WinHttpException` occured. Mark as no longer live.
+                    if (winHttpExceptionHandled)
+                    {
+                        IsLive = false;
+                        winHttpExceptionHandled = false;
+                    }
+                    else
+                    {
+                        // IsLive still set to true. Attempt immediate re-subscription without delay.
+                        winHttpExceptionHandled = true;
+                    }
+                }
+                else
+                {
+                    IsLive = false;
+                    winHttpExceptionHandled = false;
+                }
+            }
+#endif
             catch (Exception ex)
             {
                 IsLive = false;
                 _startingPosition = _lastProcessedEventPosition;
                 _logger.LogError(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
-                Console.WriteLine(ex);
             }
 
-            // Sleep between reconnections to not flood the database or not kill the CPU with infinite loop
-            // Randomness added to reduce the chance of multiple subscriptions trying to reconnect at the same time
-            await Task.Delay(1000 + new Random((int)DateTime.UtcNow.Ticks).Next(1000));
+            if (!winHttpExceptionHandled)
+            {
+                // Sleep between reconnections to not flood the database or not kill the CPU with infinite loop
+                // Randomness added to reduce the chance of multiple subscriptions trying to reconnect at the same time
+                await Task.Delay(1000 + new Random((int)DateTime.UtcNow.Ticks).Next(1000));
+            }
         }
     }
+
+#if NETFRAMEWORK
+    private static bool IsNetFrameworkTimeoutException(Grpc.Core.RpcException ex)
+    {
+        if (ex?.InnerException is not System.IO.IOException ioEx)
+        {
+            return false;
+        }
+
+        if (ioEx.InnerException is not { } innerWebException)
+        {
+            return false;
+        }
+
+        return innerWebException.Message?.Contains("Error 12002") == true;
+    }
+#endif
 
     private StreamSubscriptionResult CreateSubscription()
     {
