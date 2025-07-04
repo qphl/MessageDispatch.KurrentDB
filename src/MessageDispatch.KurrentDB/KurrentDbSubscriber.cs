@@ -245,6 +245,8 @@ public class KurrentDbSubscriber
                             IsLive = false;
                             break;
                     }
+
+                    winHttpExceptionHandled = false;
                 }
             }
             // User initiated drop, do not resubscribe
