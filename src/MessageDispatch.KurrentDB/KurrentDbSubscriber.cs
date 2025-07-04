@@ -270,6 +270,7 @@ public class KurrentDbSubscriber
 #if NETFRAMEWORK
             catch (Grpc.Core.RpcException ex)
             {
+                immediateRetry = false;
                 _startingPosition = _lastProcessedEventPosition;
                 _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
 
