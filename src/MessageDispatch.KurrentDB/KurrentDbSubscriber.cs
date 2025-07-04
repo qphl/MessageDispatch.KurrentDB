@@ -210,17 +210,16 @@ public class KurrentDbSubscriber
     public async void Start()
     {
         _cts = new CancellationTokenSource();
-        bool immediateRetry = false;
-        int retryCount = 1;
+
+        var immediateSubscriptionRetry = false;
 
         while (true)
         {
             try
             {
                 var subscription = CreateSubscription();
+                immediateSubscriptionRetry = false;
                 _logger.LogInformation("Subscribed to '{StreamName}'", _streamName);
-                immediateRetry = false;
-                retryCount = 0;
 
                 await foreach (var message in subscription.Messages)
                 {
@@ -256,7 +255,6 @@ public class KurrentDbSubscriber
             // User initiated drop, do not resubscribe
             catch (OperationCanceledException ex)
             {
-                immediateRetry = false;
                 IsLive = false;
                 _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.Disposed);
                 break;
@@ -264,48 +262,41 @@ public class KurrentDbSubscriber
             // User initiated drop, do not resubscribe
             catch (ObjectDisposedException ex)
             {
-                immediateRetry = false;
                 IsLive = false;
                 _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.Disposed);
                 break;
             }
-#if NETFRAMEWORK
+        #if NETFRAMEWORK
             catch (Grpc.Core.RpcException ex)
             {
-                immediateRetry = false;
-                _startingPosition = _lastProcessedEventPosition;
                 _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
+                _startingPosition = _lastProcessedEventPosition;
 
-                if (ex.InnerException != null && ex.InnerException.GetType() == typeof(IOException))
+                if (IsNetFrameworkTimeoutException(ex))
                 {
-                    var innerWebException = ex.InnerException.InnerException;
-                    if (innerWebException != null && innerWebException.Message.Contains("Error 12002"))
+                    if (immediateSubscriptionRetry)
                     {
-                        immediateRetry = true;
-
-                        if (retryCount > 0)
-                        {
-                            immediateRetry = false;
-                            IsLive = false;
-                            retryCount += 1;
-                        }
-
-                        _logger.LogInformation("Attempting to recreate subscription to '{StreamName}'", _streamName);
+                        IsLive = false;
+                    }
+                    else
+                    {
+                        immediateSubscriptionRetry = true;
                     }
                 }
+                else
+                {
+                    IsLive = false;
+                }
             }
-#endif
+        #endif
             catch (Exception ex)
             {
-                immediateRetry = false;
                 IsLive = false;
                 _startingPosition = _lastProcessedEventPosition;
                 _logger.LogError(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
-                Console.WriteLine(ex);
             }
 
-            retryCount += 1;
-            if (!immediateRetry)
+            if (!immediateSubscriptionRetry)
             {
                 // Sleep between reconnections to not flood the database or not kill the CPU with infinite loop
                 // Randomness added to reduce the chance of multiple subscriptions trying to reconnect at the same time
@@ -313,6 +304,23 @@ public class KurrentDbSubscriber
             }
         }
     }
+
+#if NETFRAMEWORK
+    private static bool IsNetFrameworkTimeoutException(Grpc.Core.RpcException ex)
+    {
+        if (ex?.InnerException is not IOException ioEx)
+        {
+            return false;
+        }
+
+        if (ioEx.InnerException is not { } innerWebException)
+        {
+            return false;
+        }
+
+        return innerWebException.Message?.Contains("Error 12002") == true;
+    }
+#endif
 
     private StreamSubscriptionResult CreateSubscription()
     {
