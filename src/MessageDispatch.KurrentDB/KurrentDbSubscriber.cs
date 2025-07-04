@@ -211,6 +211,7 @@ public class KurrentDbSubscriber
     {
         _cts = new CancellationTokenSource();
         bool immediateRetry = false;
+        int retryCount = 1;
 
         while (true)
         {
@@ -219,6 +220,7 @@ public class KurrentDbSubscriber
                 var subscription = CreateSubscription();
                 _logger.LogInformation("Subscribed to '{StreamName}'", _streamName);
                 immediateRetry = false;
+                retryCount = 0;
 
                 await foreach (var message in subscription.Messages)
                 {
@@ -280,6 +282,14 @@ public class KurrentDbSubscriber
                     if (innerWebException != null && innerWebException.Message.Contains("Error 12002"))
                     {
                         immediateRetry = true;
+
+                        if (retryCount > 0)
+                        {
+                            immediateRetry = false;
+                            IsLive = false;
+                            retryCount += 1;
+                        }
+
                         _logger.LogInformation("Attempting to recreate subscription to '{StreamName}'", _streamName);
                     }
                 }
@@ -294,6 +304,7 @@ public class KurrentDbSubscriber
                 Console.WriteLine(ex);
             }
 
+            retryCount += 1;
             if (!immediateRetry)
             {
                 // Sleep between reconnections to not flood the database or not kill the CPU with infinite loop
