@@ -9,10 +9,6 @@ using KurrentDB.Client;
 using Microsoft.Extensions.Logging;
 using static KurrentDB.Client.KurrentDBClient;
 
-#if NETFRAMEWORK
-using System.IO;
-#endif
-
 namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
 /// <summary>
@@ -211,14 +207,13 @@ public class KurrentDbSubscriber
     {
         _cts = new CancellationTokenSource();
 
-        var immediateSubscriptionRetry = false;
+        var winHttpExceptionHandled = false;
 
         while (true)
         {
             try
             {
                 var subscription = CreateSubscription();
-                immediateSubscriptionRetry = false;
                 _logger.LogInformation("Subscribed to '{StreamName}'", _streamName);
 
                 await foreach (var message in subscription.Messages)
@@ -274,18 +269,22 @@ public class KurrentDbSubscriber
 
                 if (IsNetFrameworkTimeoutException(ex))
                 {
-                    if (immediateSubscriptionRetry)
+                    // If subsequent .net framework `WinHttpException` occured. Mark as no longer live.
+                    if (winHttpExceptionHandled)
                     {
                         IsLive = false;
+                        winHttpExceptionHandled = false;
                     }
                     else
                     {
-                        immediateSubscriptionRetry = true;
+                        // IsLive still set to true. Attempt immediate re-subscription without delay.
+                        winHttpExceptionHandled = true;
                     }
                 }
                 else
                 {
                     IsLive = false;
+                    winHttpExceptionHandled = false;
                 }
             }
         #endif
@@ -296,7 +295,7 @@ public class KurrentDbSubscriber
                 _logger.LogError(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
             }
 
-            if (!immediateSubscriptionRetry)
+            if (!winHttpExceptionHandled)
             {
                 // Sleep between reconnections to not flood the database or not kill the CPU with infinite loop
                 // Randomness added to reduce the chance of multiple subscriptions trying to reconnect at the same time
@@ -308,7 +307,7 @@ public class KurrentDbSubscriber
 #if NETFRAMEWORK
     private static bool IsNetFrameworkTimeoutException(Grpc.Core.RpcException ex)
     {
-        if (ex?.InnerException is not IOException ioEx)
+        if (ex?.InnerException is not System.IO.IOException ioEx)
         {
             return false;
         }
