@@ -261,7 +261,7 @@ public class KurrentDbSubscriber
                 _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.Disposed);
                 break;
             }
-        #if NETFRAMEWORK
+#if NETFRAMEWORK
             catch (Grpc.Core.RpcException ex)
             {
                 _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
@@ -287,7 +287,7 @@ public class KurrentDbSubscriber
                     winHttpExceptionHandled = false;
                 }
             }
-        #endif
+#endif
             catch (Exception ex)
             {
                 IsLive = false;
