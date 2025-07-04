@@ -9,6 +9,10 @@ using KurrentDB.Client;
 using Microsoft.Extensions.Logging;
 using static KurrentDB.Client.KurrentDBClient;
 
+#if NETFRAMEWORK
+using System.IO;
+#endif
+
 namespace PharmaxoScientific.MessageDispatch.KurrentDB;
 
 /// <summary>
@@ -36,7 +40,6 @@ public class KurrentDbSubscriber
 
     private IDispatcher<ResolvedEvent> _dispatcher;
     private ILogger _logger;
-    private StreamSubscriptionResult _subscription;
 
     /// <summary>
     /// Gets a value indicating whether the view model is ready or not.
@@ -207,18 +210,17 @@ public class KurrentDbSubscriber
     public async void Start()
     {
         _cts = new CancellationTokenSource();
+        bool immediateRetry = false;
 
         while (true)
         {
             try
             {
-                if (_subscription == null)
-                {
-                    _subscription = CreateSubscription();
-                    _logger.LogInformation("Subscribed to '{StreamName}'", _streamName);
-                }
+                var subscription = CreateSubscription();
+                _logger.LogInformation("Subscribed to '{StreamName}'", _streamName);
+                immediateRetry = false;
 
-                await foreach (var message in _subscription.Messages)
+                await foreach (var message in subscription.Messages)
                 {
                     switch (message)
                     {
@@ -252,6 +254,7 @@ public class KurrentDbSubscriber
             // User initiated drop, do not resubscribe
             catch (OperationCanceledException ex)
             {
+                immediateRetry = false;
                 IsLive = false;
                 _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.Disposed);
                 break;
@@ -259,6 +262,7 @@ public class KurrentDbSubscriber
             // User initiated drop, do not resubscribe
             catch (ObjectDisposedException ex)
             {
+                immediateRetry = false;
                 IsLive = false;
                 _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.Disposed);
                 break;
@@ -266,51 +270,35 @@ public class KurrentDbSubscriber
 #if NETFRAMEWORK
             catch (Grpc.Core.RpcException ex)
             {
-                var innerWebException = ex.InnerException.InnerException;
-                if (innerWebException != null && innerWebException.Message.Contains("Error 12002"))
+                if (ex.InnerException != null && ex.InnerException.GetType() == typeof(IOException))
                 {
-                    _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
-                    TryCreatingSubscription();
+                    var innerWebException = ex.InnerException.InnerException;
+                    if (innerWebException != null && innerWebException.Message.Contains("Error 12002"))
+                    {
+                        immediateRetry = true;
+                        _startingPosition = _lastProcessedEventPosition;
+                        _logger.LogInformation(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
+                    }
                 }
             }
 #endif
             catch (Exception ex)
             {
+                immediateRetry = false;
                 IsLive = false;
                 _startingPosition = _lastProcessedEventPosition;
                 _logger.LogError(ex, "Event Store subscription dropped {0}", SubscriptionDroppedReason.SubscriberError);
                 Console.WriteLine(ex);
             }
 
-            // Sleep between reconnections to not flood the database or not kill the CPU with infinite loop
-            // Randomness added to reduce the chance of multiple subscriptions trying to reconnect at the same time
-            await Task.Delay(1000 + new Random((int)DateTime.UtcNow.Ticks).Next(1000));
-        }
-    }
-
-#if NETFRAMEWORK
-    private void TryCreatingSubscription()
-    {
-        var successfulSubscription = false;
-
-        while (!successfulSubscription)
-        {
-            try
+            if (!immediateRetry)
             {
-                // This allows us one shot to create the subscription without saying the service is down
-                _logger.LogInformation("Attempting to recreate Subscription");
-                _subscription = CreateSubscription();
-                successfulSubscription = true;
-                _logger.LogInformation("Subscription recreated");
-            }
-            catch
-            {
-                IsLive = false;
-                _logger.LogInformation("Failed to recreate subscription retrying");
+                // Sleep between reconnections to not flood the database or not kill the CPU with infinite loop
+                // Randomness added to reduce the chance of multiple subscriptions trying to reconnect at the same time
+                await Task.Delay(1000 + new Random((int)DateTime.UtcNow.Ticks).Next(1000));
             }
         }
     }
-#endif
 
     private StreamSubscriptionResult CreateSubscription()
     {
